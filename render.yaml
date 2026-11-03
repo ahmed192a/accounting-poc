@@ -1,0 +1,14 @@
+# Render blueprint: deploys the PoC as a free web service straight from this repo.
+# Free instances sleep after ~15 minutes idle (first request afterwards takes about a minute)
+# and data is in memory, so it resets whenever the service restarts. Fine for a demo.
+services:
+  - type: web
+    name: accounting-poc
+    runtime: node
+    plan: free
+    buildCommand: echo "no build step"
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

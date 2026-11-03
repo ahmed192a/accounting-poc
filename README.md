@@ -15,6 +15,17 @@ PORT=4000 DB_PATH=./data.db npm start   # optional: another port, data kept in a
 
 Open the app, then use the "Signed in as" box to switch between the six demo users.
 
+## Host it free
+
+GitHub Pages cannot run this (it needs a Node server), so use Render's free tier:
+
+1. Sign in at https://render.com with your GitHub account.
+2. New + > Blueprint > pick this repository. Render reads `render.yaml` and deploys.
+3. Open the URL Render gives you. Free instances sleep when idle, so the first load can take a minute,
+   and data resets on restart. Health check: `/healthz`.
+
+Tests also run on every push through GitHub Actions (`.github/workflows/test.yml`).
+
 ## What it proves
 
 | Idea from the plan | Where | How to see it |

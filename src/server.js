@@ -11,6 +11,7 @@ const INDEX = fileURLToPath(new URL('../public/index.html', import.meta.url));
 
 // [method, path pattern, handler, public?]. Handler: (ctx, user, { params, query, body }) => result
 const ROUTES = [
+  ['GET', '/healthz', () => ({ ok: true }), true],
   ['GET', '/api/demo-users', (ctx) => s.demoUsers(ctx), true],
   ['GET', '/api/home', (ctx, u) => s.home(ctx, u)],
   ['GET', '/api/items', (ctx, u) => s.listItems(ctx, u)],
