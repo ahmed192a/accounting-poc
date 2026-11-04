@@ -27,7 +27,7 @@ export default function register(App) {
   // The demo clock endpoint exists to show the 24-hour receipt deadline, so its button lives here.
   App.addFooter({ id: 'eta.advance', order: 10, render: () => `<button class="small" data-act="advance">${t('advance')}</button>` });
 
-  App.addCard({ id: 'eta.queue', area: 'main', order: 20, render: ({ widgets: w }) => !w.eta ? '' : `<div class="card"><h2>${t('eta')}</h2>
+  App.addCard({ id: 'eta.queue', area: 'main', order: 20, page: 'tax', pageTitleKey: 'taxPage', render: ({ widgets: w }) => !w.eta ? '' : `<div class="card"><h2>${t('eta')}</h2>
   <div class="row" style="margin-top:0"><span class="chip ${w.eta.online ? 'good' : 'bad'}">${t(w.eta.online ? 'online' : 'offline')}</span>
    <span class="sub">${w.eta.counts.submitted} ${t('submitted')} · ${w.eta.counts.waiting} ${t('waiting')} · ${w.eta.counts.dueSoon} ${t('dueSoon')} · ${w.eta.counts.overdue} ${t('overdue')}</span></div>
   <div class="row">${has('eta.manage') ? `<button data-act="online" data-on="${w.eta.online ? 0 : 1}">${t(w.eta.online ? 'goOffline' : 'goOnline')}</button>` : ''}${has('sales.create') || has('eta.manage') ? `<button class="primary" data-act="sync">${t('sync')}</button>` : ''}</div>
