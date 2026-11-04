@@ -45,8 +45,8 @@ export default {
   widgets: (ctx, user) => {
     if (!user.permissions.has('approvals.view')) return {};
     const n = notes.listNotifications(ctx, user);
-    const pending = eng.listRequests(ctx, user, { status: 'pending', mine: true }).length;
-    return { approvalsInbox: { unread: n.unread, toAct: pending, items: n.items.slice(0, 5) } };
+    const todo = eng.listRequests(ctx, user, { status: 'pending', mine: true });
+    return { approvalsInbox: { unread: n.unread, toAct: todo.length, items: n.items.slice(0, 5), todo, rules: rules.listRules(ctx, user), delegations: del.listDelegations(ctx, user) } };
   },
   seed,
 };

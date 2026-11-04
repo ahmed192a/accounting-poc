@@ -179,5 +179,5 @@ export function deleteRule(ctx, user, id) {
 export function widgets(ctx, user) {
   if (!user.permissions.has('assist.review')) return {};
   const stats = accuracyStats(ctx, user);
-  return { assist: { pending: stats.pending, stats } };
+  return { assist: { pending: stats.pending, stats, items: listItems(ctx, user) } };
 }

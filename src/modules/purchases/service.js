@@ -7,6 +7,8 @@ import { openRequest, approveStep, rejectStep, requestForDoc, cancelRequest, can
 import { EXPENSE_CODES, CATEGORIES, cleanText, validDate, today, addDays, wholeInt } from './util.js';
 import { resolveSupplier } from './suppliers.js';
 import { matchBill, applyBilledQty } from './orders.js';
+import { listSuppliers } from './suppliers.js';
+import { apAging } from './reports.js';
 
 // Bill status flow:
 //   draft --submit--> pending_approval --(last approval step)--> approved (posted) --payments--> partially_paid --> paid
@@ -263,6 +265,10 @@ export function widgets(ctx, user) {
         return { ...b, canApprove: can, requestId: req?.id ?? null };
       }).filter((b) => has('purchases.approve') || b.canApprove);
     }
+  }
+  // One payload for the purchases cards, so the UI needs no extra requests (keeps loading and re-rendering fast).
+  if (has('purchases.view')) {
+    w.purchasesData = { suppliers: listSuppliers(ctx, user), aging: apAging(ctx, user, {}), bills: listBills(ctx, user).slice(0, 8) };
   }
   return w;
 }
