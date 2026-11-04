@@ -4,7 +4,7 @@ export default function register(App) {
   const P = { page: 'sales', pageTitleKey: 'salesPage' };
 
   App.i18n.add('en', {
-    salesPage: 'Sales',
+    salesPage: 'Sales', salesTotalCol: 'Total',
     receivables: 'Receivables', pay: 'Mark paid',
     quickSale: 'Quick sale', total: 'Total incl. VAT', complete: 'Complete sale', codeMissing: 'no item code', saleDone: 'Sale posted.',
     receiptStatus: 'Receipt', chooseItems: 'Add a quantity to at least one item.',
@@ -24,7 +24,7 @@ export default function register(App) {
     salesClose: 'Close', salesDebit: 'Debit', salesCreditCol: 'Credit', salesNoPhone: 'No phone number',
   });
   App.i18n.add('ar', {
-    salesPage: 'المبيعات',
+    salesPage: 'المبيعات', salesTotalCol: 'الإجمالي',
     receivables: 'مستحقات العملاء', pay: 'تسجيل السداد',
     quickSale: 'بيع سريع', total: 'الإجمالي شامل الضريبة', complete: 'إتمام البيع', codeMissing: 'بدون كود صنف', saleDone: 'تم تسجيل البيع.',
     receiptStatus: 'الإيصال', chooseItems: 'أضف كمية لصنف واحد على الأقل.',
@@ -107,7 +107,7 @@ export default function register(App) {
   App.addCard({ id: 'sales.aging', area: 'main', order: 58, permission: 'sales.view', ...P, render: () => !aging || !aging.rows.length ? '' : `<div class="card"><h2>${t('salesAging')}</h2>
   <table><tr><th>${t('customer')}</th><th class="num">${t('salesCurrent')}</th><th class="num">${t('salesD1')}</th><th class="num">${t('salesD2')}</th><th class="num">${t('salesD3')}</th></tr>
   ${aging.rows.map((r) => `<tr><td>${esc(r.customer)}</td><td class="num">${money(r.current)}</td><td class="num">${money(r.d1_30)}</td><td class="num">${money(r.d31_60)}</td><td class="num">${money(r.d61_plus)}</td></tr>`).join('')}
-  <tr><th>${t('total')}</th><th class="num">${money(aging.totals.current)}</th><th class="num">${money(aging.totals.d1_30)}</th><th class="num">${money(aging.totals.d31_60)}</th><th class="num">${money(aging.totals.d61_plus)}</th></tr></table></div>` });
+  <tr><th>${t('salesTotalCol')}</th><th class="num">${money(aging.totals.current)}</th><th class="num">${money(aging.totals.d1_30)}</th><th class="num">${money(aging.totals.d31_60)}</th><th class="num">${money(aging.totals.d61_plus)}</th></tr></table></div>` });
 
   App.addCard({ id: 'sales.quotes', area: 'main', order: 60, permission: 'sales.view', ...P, render: () => `<div class="card"><h2>${t('salesQuotes')}</h2>
   <table>${quotes.slice(0, 8).map((q) => `<tr><td>${esc(q.number)} ${esc(q.customer)}<div class="sub">${t('salesValid')} ${esc(q.valid_until)}</div></td><td class="num">${money(q.total)}</td><td>${chip(q.status)}</td>
