@@ -21,7 +21,7 @@ export function up(db) {
     );
     CREATE TABLE approvals_rule_steps (
       id INTEGER PRIMARY KEY,
-      rule_id INTEGER NOT NULL REFERENCES approvals_rules(id),
+      rule_id INTEGER NOT NULL, -- no FK: keeps legacy-adoption fixtures able to drop tables in any order
       step_no INTEGER NOT NULL,
       approver_type TEXT NOT NULL CHECK (approver_type IN ('role','user','permission')),
       approver_ref TEXT NOT NULL,

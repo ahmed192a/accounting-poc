@@ -6,6 +6,8 @@ export const id = '700_purchases_core';
 
 export function up(db) {
   // Databases adopted from before migrations (or stripped-down test fixtures) may lack the original table.
+  db.exec('DROP VIEW IF EXISTS purchases_attachments_export'); // a stale view would break the table rebuild below
+  db.exec('CREATE TABLE IF NOT EXISTS journal_entries (id INTEGER PRIMARY KEY)'); // stub only for such fixtures
   db.exec(`CREATE TABLE IF NOT EXISTS bills (
     id INTEGER PRIMARY KEY, supplier TEXT NOT NULL, amount INTEGER NOT NULL, category TEXT NOT NULL, status TEXT NOT NULL,
     created_by INTEGER NOT NULL, approved_by INTEGER, entry_id INTEGER, created_at INTEGER NOT NULL)`);
