@@ -22,7 +22,11 @@ EVENTS.push('banking.imported', 'banking.reconciled', 'banking.invoice_settled',
 EVENTS.push('sale.refunded', 'credit_note.created'); // sales
 //   auth.user_invited {userId,email,role,invitedBy}, auth.user_deactivated {userId,by}, auth.password_reset {userId,by}, auth.lockout {userId,until,failures}, auth.apikey_created {id,name,userId}
 EVENTS.push('auth.user_invited', 'auth.user_deactivated', 'auth.password_reset', 'auth.lockout', 'auth.apikey_created');
+//   approvals.requested { requestId, docType, docId, amount, userId }   approvals.completed { requestId, docType, docId, userId }
+//   approvals.rejected  { requestId, docType, docId, reason, userId }   purchases.paid { paymentId, supplierId, amount, entryId, userId }
+//   assist.accepted     { itemId, billId, edited, userId }               assist.undone { itemId, billId, userId }
 
 export function emit(ctx, event, payload) {
   for (const h of ctx.registry?.hooks?.[event] ?? []) h.fn(ctx, payload);
 }
+EVENTS.push('approvals.requested', 'approvals.completed', 'approvals.rejected', 'purchases.paid', 'assist.accepted', 'assist.undone');
