@@ -1,0 +1,5 @@
+# One line per release: <tag> <commit>. The release workflow creates any tag and release that does not exist yet.
+v0.1.0 9ec8864063cfa0141f56418331b259301ce9196e
+v0.2.0 e1da777772ee004582eb3668fb4cab3b1755c380
+v0.3.0 9460aa8fd57872faeec03f25879b26213b2a275e
+v0.4.0 2bccaa461b679778883e3b9f885a07f578f50fb8

@@ -1,15 +1,13 @@
 name: release
 
-# Creates a GitHub release with a source zip when a version tag is pushed,
-# or on demand for an existing tag (Actions tab, "Run workflow").
+# Releases are driven by .github/release-manifest.txt (one "<tag> <commit>" per line).
+# Pushing a change to that file creates every missing tag and release, each with a source zip.
+# You can also run it by hand from the Actions tab.
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths: ['.github/release-manifest.txt', '.github/workflows/release.yml']
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Existing tag to release (for example v0.2.0)
-        required: true
 
 permissions:
   contents: write
@@ -20,27 +18,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.tag || github.ref_name }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Test the tagged code
-        run: npm test
-      - name: Build package
-        env:
-          TAG: ${{ github.event.inputs.tag || github.ref_name }}
-        run: |
-          git archive --format=zip --prefix="accounting-poc-${TAG}/" -o "accounting-poc-${TAG}.zip" "${TAG}"
-          awk -v t="${TAG#v}" '$0 ~ "^## \\[" t "\\]" {p=1; next} /^## \[/ {p=0} p' CHANGELOG.md > notes.md || true
-          [ -s notes.md ] || echo "Release ${TAG}. See ROADMAP.md and docs/PLAN.md." > notes.md
-      - name: Create or update release
+      - name: Create missing tags and releases
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
-          if gh release view "${TAG}" >/dev/null 2>&1; then
-            gh release upload "${TAG}" "accounting-poc-${TAG}.zip" --clobber
-          else
-            gh release create "${TAG}" "accounting-poc-${TAG}.zip" --title "${TAG}" --notes-file notes.md --verify-tag
-          fi
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          grep -Ev '^\s*(#|$)' .github/release-manifest.txt | while read -r TAG SHA; do
+            if gh release view "$TAG" >/dev/null 2>&1; then echo "$TAG exists"; continue; fi
+            echo "Releasing $TAG at $SHA"
+            git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || git tag -a "$TAG" "$SHA" -m "Release $TAG"
+            git push origin "refs/tags/$TAG"
+            git archive --format=zip --prefix="accounting-poc-$TAG/" -o "accounting-poc-$TAG.zip" "$TAG"
+            git show "$TAG:CHANGELOG.md" > /dev/null 2>&1 || true
+            awk -v t="${TAG#v}" '$0 ~ "^## \\[" t "\\]" {p=1; next} /^## \[/ {p=0} p' CHANGELOG.md > notes.md
+            [ -s notes.md ] || echo "Release $TAG. See ROADMAP.md and docs/PLAN.md." > notes.md
+            gh release create "$TAG" "accounting-poc-$TAG.zip" --title "$TAG" --notes-file notes.md --verify-tag
+          done
