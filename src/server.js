@@ -13,6 +13,7 @@ import { sealAudit } from './modules/auth/auditchain.js';
 import { processDeliveries } from './modules/auth/webhooks.js';
 import { sha256Hex } from './modules/auth/crypto.js';
 import { withIdempotency } from './idempotency.js';
+import { createTenantManager } from './tenants.js';
 
 // Routes, permissions, widgets and seeds all come from src/modules/*; this file only routes HTTP
 // to them and serves public/. Nothing here changes when a feature is added.
@@ -102,10 +103,13 @@ export const defaultLogger = (entry) => process.stdout.write(JSON.stringify(entr
 /**
  * opts: publicDir; authRequired (default: env AUTH_REQUIRED === '1'); logger(entry) (default: silent, the CLI passes defaultLogger);
  * fetch / resolve (webhook delivery, injectable); backgroundJobs (default true: unref'd interval for webhook retries and audit sealing);
+ * tenants (default null = single-tenant): true | { dir, maxOpen } | a tenant manager; enables one SQLite file per tenant (docs/tenancy.md);
  * plus any key of src/modules/auth/config.js (rateLimit, loginRateLimit, maxBodyBytes, trustProxy, webhook, lockThreshold, ...).
  */
-export function createApp(ctx, { publicDir = PUBLIC_DIR, logger = null, backgroundJobs = true, ...secOpts } = {}) {
+export function createApp(ctx, { publicDir = PUBLIC_DIR, logger = null, backgroundJobs = true, tenants: tenantOpt = null, ...secOpts } = {}) {
   const c = configure(ctx, secOpts);
+  const ownManager = !!tenantOpt && typeof tenantOpt.forRequest !== 'function';
+  const tenants = !tenantOpt ? null : typeof tenantOpt.forRequest === 'function' ? tenantOpt : createTenantManager(ctx, tenantOpt === true ? {} : tenantOpt);
   const limiter = new RateLimiter(c.rateLimit);
   const loginLimiter = new RateLimiter(c.loginRateLimit);
   if (c.required) ensureFirstRun(ctx, { log: logger ? (m) => logger({ level: 'info', msg: m }) : console.log, env: c.env });
@@ -119,6 +123,8 @@ export function createApp(ctx, { publicDir = PUBLIC_DIR, logger = null, backgrou
     let who = null, status = 0;
     res.setHeader('x-request-id', requestId);
     for (const [k, v] of Object.entries(securityHeaders({ secure: isSecureRequest(req, c) }))) res.setHeader(k, v);
+    let lease = null;
+    res.on('close', () => { lease?.release(); lease = null; });
     res.on('finish', () => {
       status = res.statusCode;
       log({ ts: new Date(started).toISOString(), requestId, method: req.method, path: (req.url ?? '').split('?')[0].slice(0, 200), status, ms: Date.now() - started, ip: h.ip, user: who, via: h.via });
@@ -146,17 +152,28 @@ export function createApp(ctx, { publicDir = PUBLIC_DIR, logger = null, backgrou
           }
         }
 
+        // Tenancy: pick the database this request runs against. Without tenancy (or before a second tenant exists) rctx is ctx.
+        let rctx = ctx, early = null;
+        const query = Object.fromEntries(url.searchParams);
+        if (tenants) {
+          if (r.isPublic) {
+            if (req.method !== 'GET') early = await readBody(req, c.maxBodyBytes);
+            lease = tenants.forPublic(url.pathname, query, early ?? {});
+          } else lease = tenants.forRequest(req, h);
+          rctx = lease.ctx;
+        }
+
         let user = null;
         if (!r.isPublic) {
-          const a = authenticate(ctx, req, h, r);
+          const a = authenticate(rctx, req, h, r);
           user = a.user; h.via = a.via; h.session = a.session; h.apiKey = a.apiKey ?? null;
           who = user.id;
         }
-        const body = req.method === 'GET' ? {} : await readBody(req, c.maxBodyBytes);
+        const body = req.method === 'GET' ? {} : (early ?? await readBody(req, c.maxBodyBytes));
         const okStatus = r.meta.status ?? (req.method === 'POST' ? 201 : 200);
-        const out = await withIdempotency(ctx, { req, user, route: r, body, status: okStatus }, () => r.handler(ctx, user, { params, query: Object.fromEntries(url.searchParams), body, http: h })); // Idempotency-Key header: see src/idempotency.js
+        const out = await withIdempotency(rctx, { req, user, route: r, body, status: okStatus }, () => r.handler(rctx, user, { params, query, body, http: h }));
         if (out.replayed) res.setHeader('idempotency-replayed', 'true');
-        if (req.method !== 'GET') { try { sealAudit(ctx); } catch (e) { log({ level: 'error', requestId, msg: `audit seal failed: ${e.message}` }); } }
+        if (req.method !== 'GET') { try { sealAudit(rctx); } catch (e) { log({ level: 'error', requestId, msg: `audit seal failed: ${e.message}` }); } }
         return sendJson(res, out.status, out.result, h.cookies);
       }
       if (await serveStatic(req, res, url, publicDir)) return;
@@ -174,12 +191,18 @@ export function createApp(ctx, { publicDir = PUBLIC_DIR, logger = null, backgrou
     }
   });
 
+  if (ownManager) server.on('close', () => { try { tenants.close(); } catch { /* already closed */ } });
   if (backgroundJobs) {
     let timer;
     const tick = async () => {
       try {
-        sealAudit(ctx);
-        await processDeliveries(ctx, { fetchImpl: c.fetch ?? globalThis.fetch, resolve: c.resolve });
+        const job = async (tctx) => {
+          try {
+            sealAudit(tctx);
+            await processDeliveries(tctx, { fetchImpl: c.fetch ?? globalThis.fetch, resolve: c.resolve });
+          } catch (e) { log({ level: 'error', msg: `background job failed${tctx.tenant ? ` (tenant ${tctx.tenant.slug})` : ''}: ${e.message}` }); }
+        };
+        if (tenants) await tenants.forEachActive(job); else await job(ctx); // every tenant is visited explicitly
       } catch (e) { log({ level: 'error', msg: `background job failed: ${e.message}` }); }
     };
     server.on('listening', () => { timer = setInterval(tick, c.webhook.intervalMs); timer.unref(); });
@@ -196,7 +219,8 @@ export function createSeededContext(path = ':memory:', registry = defaultRegistr
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const port = Number(process.env.PORT ?? 3000);
-  createApp(createSeededContext(process.env.DB_PATH ?? ':memory:'), { logger: process.env.REQUEST_LOG === '0' ? null : defaultLogger }).listen(port, () => {
-    console.log(`Accounting PoC running at http://localhost:${port} (${process.env.AUTH_REQUIRED === '1' ? 'sign-in REQUIRED' : 'demo mode: x-user-id identity, demo credentials seeded'})`);
+  const tenants = process.env.TENANTS_DIR ? { dir: process.env.TENANTS_DIR, maxOpen: Number(process.env.TENANT_MAX_OPEN) || 50 } : null;
+  createApp(createSeededContext(process.env.DB_PATH ?? ':memory:'), { logger: process.env.REQUEST_LOG === '0' ? null : defaultLogger, tenants }).listen(port, () => {
+    console.log(`Accounting PoC running at http://localhost:${port} (${process.env.AUTH_REQUIRED === '1' ? 'sign-in REQUIRED' : 'demo mode: x-user-id identity, demo credentials seeded'}${tenants ? `, multi-tenant: one database per company in ${tenants.dir}` : ''})`);
   });
 }
