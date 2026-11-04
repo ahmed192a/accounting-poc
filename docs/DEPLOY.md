@@ -12,6 +12,8 @@ It is a **proof of concept**: do not put real customer data or real tax credenti
 | `AUTH_REQUIRED` | unset | Read by the auth module once it is merged. When `true`, the demo user switcher stops being enough and sign-in is enforced. Check `docs/auth.md` for the exact behaviour in your version. |
 | `INITIAL_OWNER_PASSWORD` | unset | Password given to the owner account the first time a database is created, instead of a demo default. Needs `AUTH_REQUIRED`. |
 | `TAX_SECRET_KEY` | unset | Key the tax module uses to protect stored tax-authority credentials. Use a long random value and keep it out of git. Losing it makes stored credentials unreadable. |
+| `TENANTS_DIR` | unset | Turns on multi-tenancy: a folder holding `registry.db` and one SQLite file per company (`tenant-<id>.db`) plus `backups/`. Put it on a persistent disk and back it up together with `DB_PATH`. Unset keeps the app single-tenant. See `docs/tenancy.md`. |
+| `TENANT_MAX_OPEN` | `50` | How many tenant database files stay open at once; idle ones are closed least-recently-used and reopened on demand. |
 
 Variables owned by modules that are not merged yet are simply ignored. Never commit values; use the host's secret store.
 
