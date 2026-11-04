@@ -306,6 +306,7 @@ function renderChrome(current) {
   applyTheme();
 }
 function renderListSafe(list, home) {
+  if (!home) return "";
   return list.filter((c) => permOk(c.permission, home)).sort(byOrder).map((c) => { try { return c.render(home); } catch (e) { console.error(`${c.id} failed:`, e); return ''; } }).join('');
 }
 function renderUserMenu() {
