@@ -24,6 +24,7 @@ export default {
     route('POST', '/api/banking/accounts', (c, u, r) => s.createAccount(c, u, r.body), 'Create a bank, cash or wallet account linked to a ledger account', 'banking.import'),
     route('PATCH', '/api/banking/accounts/:id', (c, u, r) => s.updateAccount(c, u, id(r), r.body), 'Edit a bank account (name, opening balance, saved CSV mapping, active)', 'banking.import'),
     route('POST', '/api/banking/csv/inspect', (c, u, r) => s.inspectFile(c, u, r.body), 'Read a CSV header and suggest a column mapping', 'banking.import'),
+    route('GET', '/api/banking/overview', (c, u, r) => s.overview(c, u, r.query), 'Accounts, rules, queue, summary and batches for the banking page in one call', 'banking.view'),
     route('GET', '/api/banking/imports', (c, u, r) => s.listImports(c, u, r.query), 'List import batches', 'banking.view'),
     route('POST', '/api/banking/imports', (c, u, r) => s.createImport(c, u, r.body), 'Parse a CSV into a preview batch (nothing is committed)', 'banking.import'),
     route('GET', '/api/banking/imports/:id', (c, u, r) => s.getImport(c, u, id(r), { limit: r.query.limit }), 'Preview an import batch with its rows and row-numbered errors', 'banking.view'),

@@ -767,6 +767,22 @@ export function signoff(ctx, user, input = {}) {
   });
 }
 
+/** Everything the banking UI needs in one round trip (keeps the dashboard load fast). */
+export function overview(ctx, user, query = {}) {
+  requirePerm(user, 'banking.view');
+  const accounts = listAccounts(ctx, user);
+  const picked = accounts.find((a) => a.id === Number(query.accountId)) ?? accounts.find((a) => a.active) ?? accounts[0];
+  const out = { accounts, rules: listRules(ctx, user), accountId: picked?.id ?? null, queue: [], reconciled: [], summary: null, report: null, batches: [] };
+  if (!picked) return out;
+  const q = { accountId: picked.id, date: query.date || undefined };
+  if (query.show === 'reconciled') out.reconciled = listLines(ctx, user, { accountId: picked.id, state: 'reconciled', limit: 30 });
+  else out.queue = queue(ctx, user, { accountId: picked.id, limit: 30 });
+  out.summary = summary(ctx, user, q);
+  out.report = report(ctx, user, q);
+  out.batches = listImports(ctx, user, { accountId: picked.id });
+  return out;
+}
+
 // ---------- home widget ----------
 export function widgets(ctx, user) {
   if (!user.permissions.has('banking.view')) return {};

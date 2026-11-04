@@ -126,3 +126,14 @@ test('data: nothing in banking ever deletes rows; ledger stays balanced after a 
   assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM bank_matches').get().n, 2);
   assert.equal(ctx.db.prepare('SELECT SUM(debit) - SUM(credit) AS d FROM journal_lines').get().d, 0);
 });
+
+test('overview: one call returns accounts, rules, queue, summary and batches; clerk is refused', () => {
+  const { ctx, as, load } = bank();
+  load([['2026-03-04', 'Fee', 'f', '-15.00']]);
+  const o = b.overview(ctx, as('manager'), {});
+  assert.equal(o.queue.length, 1);
+  assert.equal(o.accounts.length, 3);
+  assert.equal(o.batches.length, 1);
+  assert.equal(o.summary.accountId, o.accountId);
+  expectError(() => b.overview(ctx, as('clerk'), {}), 'FORBIDDEN');
+});

@@ -8,7 +8,7 @@ export default function register(App) {
     bankPage: 'Banking', bankWidget: 'Bank reconciliation', bankUnrec: 'unreconciled', bankDiff: 'Statement vs ledger difference',
     bankNoFeed: 'Live bank feeds are not implemented (availability in Egypt is unverified). Import statements as CSV files.',
     bankAccounts: 'Bank, cash and wallet accounts', bankAccount: 'Account', bankType: 'Type', bankLedger: 'Ledger account', bankName: 'Name',
-    bankT_bank: 'Bank', bankT_cash: 'Cash', bankT_wallet: 'Mobile wallet', bankAdd: 'Add account',
+    bankT_bank: 'Bank', bankT_cash: 'Cash', bankT_wallet: 'Mobile wallet', bankAdd: 'Add account', bankAddRule: 'Add rule',
     bankImport: 'Import a statement (CSV)', bankStep1: '1. Choose the file', bankStep2: '2. Map the columns', bankStep3: '3. Preview and commit',
     bankPaste: 'Paste CSV text or choose a file', bankRead: 'Read file', bankPreview: 'Preview', bankCommit: 'Commit import', bankDiscard: 'Discard',
     bankSkipErr: 'Skip unreadable rows', bankBack: 'Start over', bankDateCol: 'Date column', bankDescCol: 'Description column', bankRefCol: 'Reference column',
@@ -31,7 +31,7 @@ export default function register(App) {
     bankPage: 'البنوك', bankWidget: 'مطابقة البنك', bankUnrec: 'غير مطابقة', bankDiff: 'الفرق بين كشف الحساب والدفتر',
     bankNoFeed: 'الربط المباشر مع البنوك غير مُنفَّذ (توفره في مصر غير مؤكد). استورد كشوف الحساب كملفات CSV.',
     bankAccounts: 'حسابات البنوك والنقدية والمحافظ', bankAccount: 'الحساب', bankType: 'النوع', bankLedger: 'حساب الأستاذ', bankName: 'الاسم',
-    bankT_bank: 'بنك', bankT_cash: 'نقدية', bankT_wallet: 'محفظة إلكترونية', bankAdd: 'إضافة حساب',
+    bankT_bank: 'بنك', bankT_cash: 'نقدية', bankT_wallet: 'محفظة إلكترونية', bankAdd: 'إضافة حساب', bankAddRule: 'إضافة قاعدة',
     bankImport: 'استيراد كشف حساب (CSV)', bankStep1: '١. اختر الملف', bankStep2: '٢. حدّد الأعمدة', bankStep3: '٣. معاينة واعتماد',
     bankPaste: 'الصق نص CSV أو اختر ملفاً', bankRead: 'قراءة الملف', bankPreview: 'معاينة', bankCommit: 'اعتماد الاستيراد', bankDiscard: 'تجاهل',
     bankSkipErr: 'تخطي الصفوف غير المقروءة', bankBack: 'البدء من جديد', bankDateCol: 'عمود التاريخ', bankDescCol: 'عمود البيان', bankRefCol: 'عمود المرجع',
@@ -65,17 +65,8 @@ export default function register(App) {
     // skip when the user switched while /api/home was loading (stale home): avoids a needless 403
     if (!home.permissions.includes('banking.view') || home.user.id !== App.state.userId) return;
     try {
-      S.accounts = await api('GET', '/api/banking/accounts');
-      if (!S.accounts.some((a) => a.id === S.accountId)) S.accountId = (S.accounts.find((a) => a.active) ?? S.accounts[0])?.id ?? null;
-      S.rules = await api('GET', '/api/banking/rules');
-      if (S.accountId) {
-        const q = `accountId=${S.accountId}`;
-        S.queue = S.show === 'unreconciled' ? await api('GET', `/api/banking/queue?${q}&limit=30`) : [];
-        S.reconciled = S.show === 'reconciled' ? await api('GET', `/api/banking/lines?${q}&state=reconciled&limit=30`) : [];
-        S.summary = await api('GET', `/api/banking/reconciliation?${q}${S.asOf ? `&date=${S.asOf}` : ''}`);
-        S.report = await api('GET', `/api/banking/reconciliation/report?${q}${S.asOf ? `&date=${S.asOf}` : ''}`);
-        S.batches = await api('GET', `/api/banking/imports?${q}`);
-      }
+      const o = await api('GET', `/api/banking/overview?show=${S.show}${S.accountId ? `&accountId=${S.accountId}` : ''}${S.asOf ? `&date=${S.asOf}` : ''}`);
+      Object.assign(S, { accounts: o.accounts, rules: o.rules, accountId: o.accountId, queue: o.queue, reconciled: o.reconciled, summary: o.summary, report: o.report, batches: o.batches });
     } catch (e) { if (e.code !== 'FORBIDDEN') console.error('banking load failed', e); } // FORBIDDEN: the user switched while loading
   });
 
@@ -206,7 +197,7 @@ export default function register(App) {
         <div class="row"><select id="bank-r-dir"><option value="any">${t('bankAny')}</option><option value="in">${t('bankIn')}</option><option value="out">${t('bankOut')}</option></select>
         <input type="number" id="bank-r-min" placeholder="${t('bankMin')}" style="width:90px"><input type="number" id="bank-r-max" placeholder="${t('bankMax')}" style="width:90px">
         <input type="text" id="bank-r-code" placeholder="${t('bankAcctCode')}" style="max-width:100px"><input type="text" id="bank-r-memo" placeholder="${t('bankMemo')}"></div>
-        <div class="row"><input type="text" id="bank-r-sample" placeholder="${t('bankSample')}"><button data-act="bank-rule-test">${t('bankTest')}</button><button class="primary" data-act="bank-rule-add">${t('bankAdd')}</button></div>
+        <div class="row"><input type="text" id="bank-r-sample" placeholder="${t('bankSample')}"><button data-act="bank-rule-test">${t('bankTest')}</button><button class="primary" data-act="bank-rule-add">${t('bankAddRule')}</button></div>
         ${S.ruleTest ? `<div class="note ${S.ruleTest.sample?.matches ? 'good' : 'warn'}">${S.ruleTest.matchCount} ${t('bankMatches')}${S.ruleTest.sample ? ` · ${esc(S.ruleTest.sample.reasons.join('; ') || '-')}` : ''}</div>` : ''}` : ''}</div>`;
     } });
   const ruleBody = () => {
