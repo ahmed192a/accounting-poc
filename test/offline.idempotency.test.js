@@ -127,3 +127,24 @@ test('idempotency: records expire after 24h and are purged; an expired key execu
     assert.ok(purgeExpired(ctx) >= 1);
   } finally { server.close(); }
 });
+
+test('idempotency: customer creation replay returns the same customer id and creates one row', async () => {
+  const { ctx, server, base } = await boot();
+  try {
+    const n = ctx.db.prepare('SELECT COUNT(*) n FROM customers').get().n;
+    const body = { name: 'Offline Cafe', phone: '01000000000' };
+    const a = await post(base, '/api/customers', 1, body, 'key-hhhh-0008');
+    const b = await post(base, '/api/customers', 1, body, 'key-hhhh-0008');
+    assert.equal(a.status, 201); assert.equal(b.replayed, 'true');
+    assert.deepEqual(b.body, a.body);
+    assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM customers').get().n, n + 1);
+  } finally { server.close(); }
+});
+
+test('idempotency: unauthenticated-style public routes and GETs ignore the header', async () => {
+  const { server, base } = await boot();
+  try {
+    const r = await fetch(base + '/api/items', { headers: { 'x-user-id': '3', 'idempotency-key': 'bad key!' } });
+    assert.equal(r.status, 200); // GET: header ignored, even if malformed
+  } finally { server.close(); }
+});
