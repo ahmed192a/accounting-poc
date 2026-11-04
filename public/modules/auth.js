@@ -75,8 +75,8 @@ export default function register(App) {
     catch (e) { setErr(e.message); }
   });
 
-  App.onLoad(async () => {
-    try { me = await api('GET', '/api/auth/me'); if (me.csrfToken) App.csrfToken = me.csrfToken; } catch { me = null; }
+  App.onLoad((home) => {
+    api('GET', '/api/auth/me').then((r) => { me = r; if (r.csrfToken) App.csrfToken = r.csrfToken; if (home === App.state.home) App.render(); }).catch(() => { me = null; });
   });
 
   App.addHeader({ id: 'auth.signout', order: 900, render: () => (me?.via === 'session' ? `<button data-act="auth-logout">${t('authSignOut')}</button>` : '') });

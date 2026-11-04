@@ -35,17 +35,21 @@ export default function register(App) {
 
   App.onUserChange(() => { roleMsg = null; secret = null; accounts = []; keys = []; hooksData = null; deliveries = []; overview = null; verifyResult = null; });
 
-  App.onLoad(async (home) => {
+  // Fetched in the background so page loads are not slowed down; the cards repaint when the data arrives.
+  App.onLoad((home) => { refresh(home); });
+  const refresh = async (home) => {
     const has = (p) => home.permissions.includes(p); // App.has reads state.home, which is set only after the hooks ran
     const safe = async (fn, fallback) => { try { return await fn(); } catch { return fallback; } };
-    if (has('users.invite')) accounts = await safe(() => api('GET', '/api/auth/users'), []);
-    if (has('apikeys.manage')) keys = await safe(() => api('GET', '/api/apikeys'), []);
-    if (has('webhooks.manage')) {
-      hooksData = await safe(() => api('GET', '/api/webhooks'), null);
-      deliveries = await safe(() => api('GET', '/api/webhooks/deliveries'), []);
-    }
-    if (has('security.view')) overview = await safe(() => api('GET', '/api/security/overview'), null);
-  });
+    const [a, k, h, d, o] = await Promise.all([
+      has('users.invite') ? safe(() => api('GET', '/api/auth/users'), []) : accounts,
+      has('apikeys.manage') ? safe(() => api('GET', '/api/apikeys'), []) : keys,
+      has('webhooks.manage') ? safe(() => api('GET', '/api/webhooks'), null) : hooksData,
+      has('webhooks.manage') ? safe(() => api('GET', '/api/webhooks/deliveries'), []) : deliveries,
+      has('security.view') ? safe(() => api('GET', '/api/security/overview'), null) : overview,
+    ]);
+    accounts = a; keys = k; hooksData = h; deliveries = d; overview = o;
+    if (home === App.state.home) App.render();
+  };
 
   // ---- existing card: assign roles, create roles ----
   App.addCard({ id: 'admin.users', area: 'main', order: 100, page: 'admin', pageTitleKey: 'adminPage', render: ({ widgets: w }) => !w.admin ? '' : `<div class="card"><h2>${t('admin')}</h2>
