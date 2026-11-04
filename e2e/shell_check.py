@@ -134,6 +134,7 @@ try:
         page.click("#theme")  # back to light for the remaining checks
 
         # ---- command palette ----
+        page.select_option("#user", "1"); page.wait_for_selector("#nav a:has-text('Fixture Banking')")  # reload reset the demo user
         page.keyboard.press("Control+k")
         page.wait_for_selector("[role=dialog] input[role=combobox]")
         check(page.evaluate("document.activeElement.getAttribute('role')") == "combobox", "palette focuses its input")
