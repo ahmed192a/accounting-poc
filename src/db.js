@@ -1,149 +1,77 @@
 import { DatabaseSync } from 'node:sqlite';
+import { readdirSync } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join } from 'node:path';
 
 // Money is stored as integer piastres (1 EGP = 100). Never floats.
-const SCHEMA = `
-CREATE TABLE accounts (
-  id INTEGER PRIMARY KEY,
-  code TEXT NOT NULL UNIQUE,
-  name TEXT NOT NULL,
-  name_ar TEXT NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('asset','liability','equity','revenue','expense'))
-);
+// The schema lives in src/migrations/NNN_name.js (see docs/ARCHITECTURE.md for the numbering ranges).
 
-CREATE TABLE journal_entries (
-  id INTEGER PRIMARY KEY,
-  entity_id INTEGER NOT NULL DEFAULT 1,           -- multi-entity ready from day one
-  entry_date TEXT NOT NULL,
-  memo TEXT NOT NULL DEFAULT '',
-  source_type TEXT NOT NULL DEFAULT 'manual',
-  source_id INTEGER,
-  reverses_id INTEGER REFERENCES journal_entries(id),
-  created_by INTEGER,
-  created_at INTEGER NOT NULL,
-  reason TEXT
-);
+export const MIGRATIONS_DIR = fileURLToPath(new URL('./migrations/', import.meta.url));
+const MIGRATION_FILE = /^(\d{3})_[a-z0-9_]+\.js$/;
 
-CREATE TABLE journal_lines (
-  id INTEGER PRIMARY KEY,
-  entry_id INTEGER NOT NULL REFERENCES journal_entries(id),
-  account_id INTEGER NOT NULL REFERENCES accounts(id),
-  debit INTEGER NOT NULL DEFAULT 0 CHECK (debit >= 0),
-  credit INTEGER NOT NULL DEFAULT 0 CHECK (credit >= 0),
-  currency TEXT NOT NULL DEFAULT 'EGP',           -- multi-currency ready from day one
-  CHECK (NOT (debit > 0 AND credit > 0))
-);
+/**
+ * Discover migrations in a folder: every NNN_name.js exporting `id` (equal to the file name without
+ * .js) and `up(db)`. Returned in filename order. Throws on a bad name, a mismatched id or a
+ * duplicate number, so two agents picking the same number fail loudly instead of silently.
+ */
+export async function loadMigrations(dir = MIGRATIONS_DIR) {
+  const files = readdirSync(dir).filter((f) => f.endsWith('.js')).sort();
+  const seen = new Map();
+  const out = [];
+  for (const file of files) {
+    const m = MIGRATION_FILE.exec(file);
+    if (!m) throw new Error(`Migration file "${file}" must be named NNN_name.js (three digits, lowercase name)`);
+    if (seen.has(m[1])) throw new Error(`Migrations ${seen.get(m[1])} and ${file} use the same number ${m[1]}`);
+    seen.set(m[1], file);
+    const mod = await import(pathToFileURL(join(dir, file)).href);
+    const id = file.slice(0, -3);
+    if (mod.id !== id) throw new Error(`Migration ${file} must export id = '${id}' (got ${JSON.stringify(mod.id)})`);
+    if (typeof mod.up !== 'function') throw new Error(`Migration ${file} must export function up(db)`);
+    out.push({ id, up: mod.up });
+  }
+  return out;
+}
 
-CREATE TABLE audit_log (
-  id INTEGER PRIMARY KEY,
-  ts INTEGER NOT NULL,
-  user_id INTEGER,
-  action TEXT NOT NULL,
-  record_type TEXT,
-  record_id INTEGER,
-  old_value TEXT,
-  new_value TEXT,
-  reason TEXT
-);
+const DEFAULT_MIGRATIONS = await loadMigrations();
 
--- The ledger and the audit log can only ever be appended to. Enforced in the database,
--- not just in application code.
-CREATE TRIGGER je_no_update BEFORE UPDATE ON journal_entries BEGIN SELECT RAISE(ABORT, 'journal is append-only'); END;
-CREATE TRIGGER je_no_delete BEFORE DELETE ON journal_entries BEGIN SELECT RAISE(ABORT, 'journal is append-only'); END;
-CREATE TRIGGER jl_no_update BEFORE UPDATE ON journal_lines BEGIN SELECT RAISE(ABORT, 'journal is append-only'); END;
-CREATE TRIGGER jl_no_delete BEFORE DELETE ON journal_lines BEGIN SELECT RAISE(ABORT, 'journal is append-only'); END;
-CREATE TRIGGER al_no_update BEFORE UPDATE ON audit_log BEGIN SELECT RAISE(ABORT, 'audit log is append-only'); END;
-CREATE TRIGGER al_no_delete BEFORE DELETE ON audit_log BEGIN SELECT RAISE(ABORT, 'audit log is append-only'); END;
-
-CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-
-CREATE TABLE period_lock (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  through_date TEXT,
-  mode TEXT CHECK (mode IN ('soft','hard'))
-);
-INSERT INTO period_lock (id, through_date, mode) VALUES (1, NULL, NULL);
-
-CREATE TABLE roles (
-  id INTEGER PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE,
-  permissions TEXT NOT NULL,      -- JSON array of permission atoms
-  limits TEXT NOT NULL DEFAULT '{}', -- JSON object: permission -> max amount in piastres
-  builtin INTEGER NOT NULL DEFAULT 0
-);
-
-CREATE TABLE users (
-  id INTEGER PRIMARY KEY,
-  name TEXT NOT NULL,
-  role_id INTEGER NOT NULL REFERENCES roles(id)
-);
-
-CREATE TABLE items (
-  id INTEGER PRIMARY KEY,
-  sku TEXT NOT NULL UNIQUE,
-  name TEXT NOT NULL,
-  name_ar TEXT NOT NULL,
-  price INTEGER NOT NULL,         -- VAT-exclusive, piastres
-  eta_code TEXT                   -- GS1/EGS item code; NULL means the ETA would reject it
-);
-
-CREATE TABLE invoices (
-  id INTEGER PRIMARY KEY,
-  number TEXT,
-  customer TEXT NOT NULL,
-  lines TEXT NOT NULL,
-  subtotal INTEGER NOT NULL,
-  vat INTEGER NOT NULL,
-  total INTEGER NOT NULL,
-  issue_date TEXT NOT NULL,
-  due_date TEXT NOT NULL,
-  paid INTEGER NOT NULL DEFAULT 0,
-  entry_id INTEGER REFERENCES journal_entries(id),
-  created_by INTEGER NOT NULL
-);
-
-CREATE TABLE bills (
-  id INTEGER PRIMARY KEY,
-  supplier TEXT NOT NULL,
-  amount INTEGER NOT NULL,
-  category TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('pending_approval','approved')),
-  created_by INTEGER NOT NULL,
-  approved_by INTEGER,
-  entry_id INTEGER REFERENCES journal_entries(id),
-  created_at INTEGER NOT NULL
-);
-
-CREATE TABLE sales (
-  id INTEGER PRIMARY KEY,
-  items TEXT NOT NULL,
-  subtotal INTEGER NOT NULL,
-  vat INTEGER NOT NULL,
-  total INTEGER NOT NULL,
-  created_by INTEGER NOT NULL,
-  created_at INTEGER NOT NULL,
-  entry_id INTEGER REFERENCES journal_entries(id)
-);
-
-CREATE TABLE receipts (
-  id INTEGER PRIMARY KEY,
-  sale_id INTEGER NOT NULL REFERENCES sales(id),
-  payload TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('queued','submitted','rejected')),
-  uuid TEXT,
-  reject_reason TEXT,
-  created_at INTEGER NOT NULL,
-  deadline_at INTEGER NOT NULL,
-  submitted_at INTEGER
-);
-`;
+/**
+ * Apply every migration not yet recorded in schema_migrations, in filename order, each in its own
+ * transaction. Running it again is a no-op. Returns the ids applied by this call.
+ */
+export function runMigrations(db, migrations = DEFAULT_MIGRATIONS) {
+  db.exec('CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)');
+  const done = new Set(db.prepare('SELECT id FROM schema_migrations').all().map((r) => r.id));
+  // A database created before migrations existed already has the core schema: adopt it, do not recreate it.
+  if (done.size === 0 && db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'accounts'").get()) {
+    db.prepare('INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)').run('001_core', Date.now());
+    done.add('001_core');
+  }
+  const applied = [];
+  for (const m of [...migrations].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
+    if (done.has(m.id)) continue;
+    db.exec('BEGIN');
+    try {
+      m.up(db);
+      db.prepare('INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)').run(m.id, Date.now());
+      db.exec('COMMIT');
+    } catch (e) {
+      db.exec('ROLLBACK');
+      throw new Error(`Migration ${m.id} failed: ${e.message}`, { cause: e });
+    }
+    applied.push(m.id);
+  }
+  return applied;
+}
 
 export function openDb(path = ':memory:') {
   const db = new DatabaseSync(path);
-  db.exec(SCHEMA);
+  runMigrations(db);
   return db;
 }
 
-export function createContext(db) {
-  const ctx = { db, offsetMs: 0, now: () => Date.now() + ctx.offsetMs };
+export function createContext(db, registry = null) {
+  const ctx = { db, registry, offsetMs: 0, now: () => Date.now() + ctx.offsetMs };
   return ctx;
 }
+
+export const setting = (db, key) => db.prepare('SELECT value FROM settings WHERE key = ?').get(key)?.value;
