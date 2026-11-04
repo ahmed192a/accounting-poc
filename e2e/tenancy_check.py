@@ -41,7 +41,7 @@ try:
             page.fill("#auth-email", email); page.fill("#auth-pw", pw)
             page.click("[data-act=auth-login]")
             page.wait_for_selector("#auth-email", state="detached", timeout=8000)
-            page.wait_for_load_state("networkidle")
+            page.wait_for_selector("nav a", timeout=10000); page.wait_for_timeout(800)
 
         def api_session(email, pw):
             """Independent API client with its own cookies, as a second browser would be."""
