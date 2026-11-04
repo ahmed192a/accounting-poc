@@ -68,7 +68,7 @@ try:
         ctx = b.new_context(viewport={"width": 1280, "height": 860}, color_scheme="light", service_workers="allow")
         page = ctx.new_page()
         errors = []
-        page.on("console", lambda m: errors.append(m.text) if m.type == "error" and "403" not in m.text else None)
+        page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
         page.on("pageerror", lambda e: errors.append(str(e)))
         # the deliberately throwing fixture card logs one console.error from the shell: expected
         def ok_error(msgs): return [m for m in msgs if "fx.broken" not in m and "boom" not in m]
@@ -217,7 +217,7 @@ try:
         mctx = b.new_context(viewport={"width": 390, "height": 800}, device_scale_factor=2, is_mobile=True, has_touch=True)
         m = mctx.new_page()
         merrs = []
-        m.on("console", lambda x: merrs.append(x.text) if x.type == "error" and "403" not in x.text else None)
+        m.on("console", lambda x: merrs.append(x.text) if x.type == "error" else None)
         m.on("pageerror", lambda e: merrs.append(str(e)))
         m.goto(BASE + "/"); m.wait_for_selector(".role-line")
         m.select_option("#user", "1"); m.wait_for_selector("#bottomnav a")

@@ -65,7 +65,7 @@ try:
             return "\n".join(out)
 
         # the 400 below is the deliberate no-reason reversal being refused
-        page.on("console", lambda m: errors.append(m.text) if m.type == "error" and "400" not in m.text and "403" not in m.text else None)
+        page.on("console", lambda m: errors.append(m.text) if m.type == "error" and "400" not in m.text else None)
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto(f"http://127.0.0.1:{PORT}/")
         page.wait_for_selector(".role-line")
