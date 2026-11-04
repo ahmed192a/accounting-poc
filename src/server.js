@@ -12,6 +12,7 @@ import { ensureFirstRun } from './modules/auth/service.js';
 import { sealAudit } from './modules/auth/auditchain.js';
 import { processDeliveries } from './modules/auth/webhooks.js';
 import { sha256Hex } from './modules/auth/crypto.js';
+import { withIdempotency } from './idempotency.js';
 
 // Routes, permissions, widgets and seeds all come from src/modules/*; this file only routes HTTP
 // to them and serves public/. Nothing here changes when a feature is added.
@@ -152,9 +153,11 @@ export function createApp(ctx, { publicDir = PUBLIC_DIR, logger = null, backgrou
           who = user.id;
         }
         const body = req.method === 'GET' ? {} : await readBody(req, c.maxBodyBytes);
-        const result = await r.handler(ctx, user, { params, query: Object.fromEntries(url.searchParams), body, http: h });
+        const okStatus = r.meta.status ?? (req.method === 'POST' ? 201 : 200);
+        const out = await withIdempotency(ctx, { req, user, route: r, body, status: okStatus }, () => r.handler(ctx, user, { params, query: Object.fromEntries(url.searchParams), body, http: h })); // Idempotency-Key header: see src/idempotency.js
+        if (out.replayed) res.setHeader('idempotency-replayed', 'true');
         if (req.method !== 'GET') { try { sealAudit(ctx); } catch (e) { log({ level: 'error', requestId, msg: `audit seal failed: ${e.message}` }); } }
-        return sendJson(res, r.meta.status ?? (req.method === 'POST' ? 201 : 200), result, h.cookies);
+        return sendJson(res, out.status, out.result, h.cookies);
       }
       if (await serveStatic(req, res, url, publicDir)) return;
       throw new AppError(404, 'NOT_FOUND', 'No such route');
