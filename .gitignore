@@ -2,3 +2,7 @@ node_modules/
 *.db
 .DS_Store
 e2e/shots/
+coverage/
+docs/openapi.json
+__pycache__/
+*.pyc
