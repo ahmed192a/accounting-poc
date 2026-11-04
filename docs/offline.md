@@ -54,7 +54,7 @@ No new permissions, events or env vars. Tests: `test/offline.queue.test.js`, `of
 - The idempotency record is written right after the handler's transaction commits, not inside it: a process crash in that instant could let one retry run twice. Closing it needs the key insert inside the handler transaction (a shared-file change).
 - Replay stops at the first transient failure, so one stuck item holds back the ones behind it (deliberate: ordering).
 - Offline-created records have no server id, so an invoice for a customer created offline in the same session will be rejected on replay (the customer is replayed first, but the invoice body refers to a name/id the user typed). Review it under "Not accepted" and edit.
-- The quick-sale total shown offline is an estimate from cached prices; the server computes the real total (VAT, discount rounding) on replay. The existing sales card still says "Sale posted" for a queued sale; it should read `r.queued` (request below).
+- The quick-sale total shown offline is an estimate from cached prices; the server computes the real total (VAT, discount rounding) on replay.
 - Cached read data may be stale and is stored in the browser on this device (per demo user id). In sign-in mode the cache is not keyed per user; it is emptied by every successful write (sign-in/out included) and dropped on 401/403, but a shared kiosk should still use a private window.
 - Queued items store the request body in IndexedDB unencrypted. Signing out does not delete waiting items; they replay for the `session` identity at next sign-in.
 - Server-down while the browser believes it is online is treated like offline (fetch throws); an HTTP 5xx is not queued at submit time (the user sees the error).

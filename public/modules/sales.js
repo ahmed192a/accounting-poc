@@ -6,7 +6,7 @@ export default function register(App) {
   App.i18n.add('en', {
     salesPage: 'Sales', salesTotalCol: 'Total',
     receivables: 'Receivables', pay: 'Mark paid',
-    quickSale: 'Quick sale', total: 'Total incl. VAT', complete: 'Complete sale', codeMissing: 'no item code', saleDone: 'Sale posted.',
+    quickSale: 'Quick sale', total: 'Total incl. VAT', complete: 'Complete sale', codeMissing: 'no item code', saleDone: 'Sale posted.', saleSaved: 'Saved on this device, will post when you are back online. Estimated total:',
     receiptStatus: 'Receipt', chooseItems: 'Add a quantity to at least one item.',
     st_submitted: 'Submitted', st_queued: 'Queued', st_rejected: 'Rejected',
     invoice: 'New invoice', customer: 'Customer', desc: 'Description', qty: 'Qty', unitPrice: 'Unit price (EGP)',
@@ -26,7 +26,7 @@ export default function register(App) {
   App.i18n.add('ar', {
     salesPage: 'المبيعات', salesTotalCol: 'الإجمالي',
     receivables: 'مستحقات العملاء', pay: 'تسجيل السداد',
-    quickSale: 'بيع سريع', total: 'الإجمالي شامل الضريبة', complete: 'إتمام البيع', codeMissing: 'بدون كود صنف', saleDone: 'تم تسجيل البيع.',
+    quickSale: 'بيع سريع', total: 'الإجمالي شامل الضريبة', complete: 'إتمام البيع', codeMissing: 'بدون كود صنف', saleDone: 'تم تسجيل البيع.', saleSaved: 'تم الحفظ على هذا الجهاز وسيُسجَّل عند عودة الاتصال. الإجمالي التقديري:',
     receiptStatus: 'الإيصال', chooseItems: 'أضف كمية لصنف واحد على الأقل.',
     st_submitted: 'تم الإرسال', st_queued: 'في الانتظار', st_rejected: 'مرفوض',
     invoice: 'فاتورة جديدة', customer: 'العميل', desc: 'الوصف', qty: 'الكمية', unitPrice: 'سعر الوحدة (ج.م)',
@@ -146,6 +146,7 @@ export default function register(App) {
     run(async () => {
       const r = await api('POST', '/api/sales/quick', { items: picked, discount: discount() });
       const rej = r.receipt.status === 'rejected';
+      if (r.queued) { saleMsg = { cls: 'warn', text: `${t('saleSaved')} ${money(r.sale.total)}` }; return; }
       saleMsg = { cls: rej ? 'bad' : r.receipt.status === 'queued' ? 'warn' : 'good', text: `${t('saleDone')} ${money(r.sale.total)} · ${t('receiptStatus')}: ${t('st_' + r.receipt.status)}` };
     });
   });
