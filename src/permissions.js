@@ -1,58 +1,87 @@
 import { AppError } from './errors.js';
 
-// Permission atoms. Roles are just bundles of these, so owners can clone and edit roles
-// instead of being stuck with fixed ones. Sensitive areas (payroll, banking) are separate atoms.
-export const PERMISSIONS = {
-  'sales.view': 'See invoices and sales',
-  'sales.create': 'Create invoices, quick sales and record payments',
-  'purchases.view': 'See bills',
-  'purchases.create': 'Create bills (amount-limited)',
-  'purchases.approve': 'Approve bills (amount-limited)',
-  'banking.view': 'See cash and bank balances',
-  'payroll.view': 'See payroll data',
-  'ledger.view': 'Read the journal and trial balance',
-  'ledger.post': 'Post manual journal entries',
-  'ledger.reverse': 'Reverse journal entries',
-  'period.lock': 'Set or lift the period lock',
-  'reports.view': 'See financial reports',
-  'audit.view': 'Search the audit log',
-  'users.manage': 'Assign roles to users',
-  'roles.manage': 'Create and edit roles',
-  'eta.manage': 'Manage ETA connection and queue',
-  'export.all': 'Export all data, including the audit log',
-};
-export const ALL_PERMISSIONS = Object.keys(PERMISSIONS);
+// ---------------------------------------------------------------------------------------------
+// Permission registry. Atoms are NOT listed here: every module declares its own atoms and grants
+// them to built-in roles (see docs/ARCHITECTURE.md). The module loader fills these live objects.
+// Roles are just bundles of atoms, so owners can clone and edit roles instead of being stuck with
+// fixed ones. Sensitive areas (payroll, banking) are separate atoms.
+// ---------------------------------------------------------------------------------------------
+export const PERMISSIONS = {};      // atom -> description (live, filled by registerPermissions)
+export const ALL_PERMISSIONS = [];  // atom names in registration order (live)
+const ATOM_OWNER = new Map();       // atom -> module name that declared it
 
-const EGP = 100;
-export const BUILTIN_ROLES = [
-  { name: 'owner', permissions: ALL_PERMISSIONS, limits: {} },
-  {
-    name: 'manager',
-    // Approves but does not create bills, so the manager holds no separation-of-duties conflict.
-    permissions: ['sales.view', 'sales.create', 'purchases.view', 'purchases.approve', 'banking.view', 'reports.view', 'period.lock', 'audit.view', 'eta.manage'],
-    limits: { 'purchases.approve': 20000 * EGP },
-  },
-  {
-    name: 'clerk',
-    permissions: ['sales.view', 'sales.create', 'purchases.view', 'purchases.create'],
-    limits: { 'purchases.create': 5000 * EGP },
-  },
-  {
-    name: 'accountant',
-    permissions: ['sales.view', 'purchases.view', 'banking.view', 'ledger.view', 'ledger.post', 'ledger.reverse', 'reports.view', 'audit.view'],
-    limits: {},
-  },
-  {
-    name: 'auditor',
-    permissions: ['sales.view', 'purchases.view', 'ledger.view', 'reports.view', 'audit.view'],
-    limits: {},
-  },
-  {
-    name: 'admin',
-    permissions: ['users.manage', 'roles.manage', 'eta.manage', 'export.all'],
-    limits: {},
-  },
-];
+const ATOM = /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/;
+
+// The built-in role skeletons. Their atoms and limits arrive from modules' roleGrants / roleLimits.
+// `owner` always holds every registered atom.
+export const BUILTIN_ROLES = ['owner', 'manager', 'clerk', 'accountant', 'auditor', 'admin']
+  .map((name) => ({ name, permissions: [], limits: {} }));
+const builtin = (name) => {
+  const r = BUILTIN_ROLES.find((x) => x.name === name);
+  if (!r) throw new Error(`Unknown built-in role "${name}" (built-in roles: ${BUILTIN_ROLES.map((x) => x.name).join(', ')})`);
+  return r;
+};
+
+/** Register atoms declared by a module. Idempotent for the same module; a clash between modules throws. */
+export function registerPermissions(moduleName, atoms = {}) {
+  for (const [atom, description] of Object.entries(atoms)) {
+    if (!ATOM.test(atom)) throw new Error(`Module ${moduleName}: permission "${atom}" must look like "area.action"`);
+    const owner = ATOM_OWNER.get(atom);
+    if (owner && owner !== moduleName) throw new Error(`Permission "${atom}" is declared by both "${owner}" and "${moduleName}"`);
+    if (!owner) {
+      ATOM_OWNER.set(atom, moduleName);
+      ALL_PERMISSIONS.push(atom);
+      builtin('owner').permissions.push(atom);
+    }
+    PERMISSIONS[atom] = description;
+  }
+}
+
+/** Grant registered atoms to a built-in role (roleGrants). Idempotent. */
+export function grantBuiltin(moduleName, roleName, atoms = []) {
+  const role = builtin(roleName);
+  for (const a of atoms) {
+    if (!ATOM_OWNER.has(a)) throw new Error(`Module ${moduleName}: cannot grant unknown permission "${a}" to ${roleName}`);
+    if (!role.permissions.includes(a)) role.permissions.push(a);
+  }
+}
+
+/** Amount limits (piastres) for a built-in role (roleLimits). */
+export function limitBuiltin(moduleName, roleName, limits = {}) {
+  const role = builtin(roleName);
+  for (const [atom, max] of Object.entries(limits)) {
+    if (!ATOM_OWNER.has(atom)) throw new Error(`Module ${moduleName}: limit on unknown permission "${atom}"`);
+    role.limits[atom] = max;
+  }
+}
+
+/**
+ * Bring the built-in roles in the database up to date with the registry. Runs on every startup.
+ * Add-only for the built-in roles it owns: missing roles are created, newly registered atoms and
+ * limits are added, nothing is removed or overwritten, and custom roles (builtin = 0) are never touched.
+ */
+export function syncBuiltinRoles(ctx) {
+  const { db } = ctx;
+  const created = [], updated = [];
+  for (const r of BUILTIN_ROLES) {
+    const row = db.prepare('SELECT id, permissions, limits, builtin FROM roles WHERE name = ?').get(r.name);
+    if (!row) {
+      db.prepare('INSERT INTO roles (name, permissions, limits, builtin) VALUES (?,?,?,1)').run(r.name, JSON.stringify(r.permissions), JSON.stringify(r.limits));
+      created.push(r.name);
+      continue;
+    }
+    if (!row.builtin) continue; // a custom role that happens to share the name: leave it alone
+    const have = JSON.parse(row.permissions);
+    const limits = JSON.parse(row.limits);
+    const addPerms = r.permissions.filter((p) => !have.includes(p));
+    const addLimits = Object.keys(r.limits).filter((k) => !(k in limits));
+    if (!addPerms.length && !addLimits.length) continue;
+    for (const k of addLimits) limits[k] = r.limits[k];
+    db.prepare('UPDATE roles SET permissions = ?, limits = ? WHERE id = ?').run(JSON.stringify([...have, ...addPerms]), JSON.stringify(limits), row.id);
+    updated.push(r.name);
+  }
+  return { created, updated };
+}
 
 // Segregation-of-duties pairs: one person should not hold both.
 export const SOD_PAIRS = [

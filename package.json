@@ -6,7 +6,7 @@
   "description": "Proof of concept: append-only ledger, granular roles with role-specific home views, offline e-receipt queue with a mock ETA adapter",
   "scripts": {
     "start": "node --no-warnings src/server.js",
-    "test": "node --no-warnings --test test/*.test.js"
+    "test": "node --no-warnings --test \"test/**/*.test.js\""
   },
   "engines": { "node": ">=22.13" }
 }

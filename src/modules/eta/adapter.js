@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { AppError } from './errors.js';
-import { audit } from './ledger.js';
+import { AppError } from '../../errors.js';
+import { audit } from '../../ledger.js';
 
 // MOCK of the Egyptian Tax Authority e-receipt flow. It does NOT implement the real ETA
 // protocol (signing, auth, schemas). It exists to prove the offline queue, the 24-hour
