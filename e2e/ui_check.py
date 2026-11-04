@@ -27,6 +27,14 @@ try:
         page = b.new_page(viewport={"width": 1280, "height": 900}, device_scale_factor=1)
         errors = []
 
+        def sw(uid):
+            """Switch demo user and let the UI settle (data reload is asynchronous)."""
+            page.select_option("#user", uid)
+            page.wait_for_timeout(300)
+            try: page.wait_for_load_state("networkidle", timeout=5000)
+            except Exception: pass
+            page.wait_for_timeout(500)
+
         def nav_hrefs():
             hs = page.eval_on_selector_all("nav a", "els => els.map(e => e.getAttribute('href'))")
             return list(dict.fromkeys(h for h in hs if h))
@@ -69,12 +77,12 @@ try:
         page.screenshot(path=f"{OUT}/1_clerk.png")
 
         # manager takes the ETA connection offline
-        page.select_option("#user", "2"); ws("text=Simulate offline")
+        sw("2"); ws("text=Simulate offline")
         page.click("text=Simulate offline"); ws("text=ETA offline")
         check(page.inner_text("#etaPill") == "ETA offline", "header shows ETA offline")
 
         # clerk sells while offline
-        page.select_option("#user", "3"); ws("text=Complete sale")
+        sw("3"); ws("text=Complete sale")
         page.fill("input[data-sku=TEA-250]", "2"); page.fill("input[data-sku=SPICE-LOOSE]", "0")
         page.wait_for_timeout(400); total = page.inner_text("#saleTotal")
         check("102.60" in total, f"live total includes 14% VAT (got {total})")
@@ -90,19 +98,19 @@ try:
         page.screenshot(path=f"{OUT}/3_overdue.png")
 
         # connection returns, clerk syncs
-        page.select_option("#user", "2"); ws("text=Go online"); page.click("text=Go online")
-        page.select_option("#user", "3"); ws("text=Sync queue now"); page.click("text=Sync queue now")
+        sw("2"); ws("text=Go online"); page.click("text=Go online")
+        sw("3"); ws("text=Sync queue now"); page.click("text=Sync queue now")
         ws(".chip.good:has-text('Submitted')")
         check(True, "sync submits the queued receipt")
 
         # owner: everything
-        page.select_option("#user", "1"); ws("text=Ledger")
+        sw("1"); ws("text=Ledger")
         txt = alltext().lower()
         check(all(k in txt for k in ["cash", "receivables", "ledger", "audit log", "approval queue"]), "owner sees finance, ledger, audit, approvals")
         page.screenshot(path=f"{OUT}/4_owner.png", full_page=True)
 
         # reverse a ledger entry from the UI (needs a reason)
-        page.select_option("#user", "4"); ws("#rev-reason")
+        sw("4"); ws("#rev-reason")
         page.click("button[data-act=reverse] >> nth=0"); page.wait_for_selector("#toast.err")
         check("reason" in page.inner_text("#toast").lower(), "reversal without a reason is refused in the UI")
         page.fill("#rev-reason", "Customer returned goods")
@@ -110,11 +118,11 @@ try:
         check("balanced" in alltext().lower() and "NOT" not in alltext(), "trial balance still balanced after reversal")
 
         # auditor read-only, admin sees no money
-        page.select_option("#user", "5"); ws("text=Audit log")
+        sw("5"); ws("text=Audit log")
         txt = alltext().lower()
         check(page.locator("button.primary, [data-act=reverse], [data-act=sale], [data-act=lock], [data-act=approve]").count() == 0 and "quick sale" not in " ".join(page.locator("h2").all_inner_texts()).lower(), "auditor has no write controls")
         check("ledger" in txt and "audit log" in txt and "receivables" in txt, "auditor can read ledger, audit log and reports")
-        page.select_option("#user", "6"); ws("text=Users and roles")
+        sw("6"); ws("text=Users and roles")
         txt = alltext().lower()
         heads = " | ".join(page.locator("h2").all_inner_texts()).lower()
         print("  admin cards:", heads)
@@ -123,7 +131,7 @@ try:
         page.screenshot(path=f"{OUT}/5_admin.png", full_page=True)
 
         # Arabic + RTL
-        page.select_option("#user", "3"); ws("text=Complete sale")
+        sw("3"); ws("text=Complete sale")
         page.click("#lang"); ws("text=إتمام البيع")
         check(page.evaluate("document.documentElement.dir") == "rtl", "Arabic switches the page to RTL")
         page.screenshot(path=f"{OUT}/6_arabic.png")
