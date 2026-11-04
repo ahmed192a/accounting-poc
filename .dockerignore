@@ -1,0 +1,15 @@
+.git
+.github
+node_modules
+coverage
+e2e
+test
+docs
+scripts
+*.db
+*.md
+!README.md
+Dockerfile
+.dockerignore
+.DS_Store
+__pycache__
