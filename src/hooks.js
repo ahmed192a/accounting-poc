@@ -12,7 +12,7 @@
 //   bill.created     { bill: {id, supplier, amount, category}, status, userId }
 //   bill.approved    { bill: {id, supplier, amount, category}, entryId, userId, auto }
 //   sale.refunded    { sale: {id, subtotal, vat, total}, items: [{sku, qty, price}], entryId (the reversal), originalEntryId, reason, receipt: {id, status, uuid}|null, userId }
-//   credit_note.created { creditNote: {id, number, invoiceId, subtotal, vat, total}, invoice: {id, number, customer}, entryId, voided, userId }
+//   credit_note.created { creditNote: {id, number, invoiceId, lines: [{description, qty, unitPrice, sku?}], subtotal, vat, total}, invoice: {id, number, customer}, entryId, voided, userId }
 export const EVENTS = ['entry.posted', 'sale.created', 'invoice.created', 'invoice.paid', 'bill.created', 'bill.approved'];
 EVENTS.push('sale.refunded', 'credit_note.created'); // sales (see the doc comment lines below)
 

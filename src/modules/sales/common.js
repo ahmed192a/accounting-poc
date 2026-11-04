@@ -42,7 +42,8 @@ export function parseLines(raw) {
     if (l.description.length > 200) throw new AppError(400, 'BAD_INPUT', 'Line description is too long (max 200 characters)');
     const qty = posInt(l.qty, 'qty'), unitPrice = posInt(l.unitPrice, 'unitPrice');
     subtotal += qty * unitPrice;
-    return { description: l.description, qty, unitPrice };
+    if (l.sku != null && (typeof l.sku !== 'string' || !/^[A-Za-z0-9._-]{1,40}$/.test(l.sku))) throw new AppError(400, 'BAD_INPUT', 'Line sku must be a valid item sku');
+    return l.sku ? { description: l.description, qty, unitPrice, sku: l.sku } : { description: l.description, qty, unitPrice }; // sku is optional and lets other modules match items exactly
   });
   return { lines, subtotal };
 }

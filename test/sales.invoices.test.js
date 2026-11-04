@@ -99,6 +99,11 @@ test('credit note: reverses revenue and VAT, linked to the invoice, partial allo
   assert.equal(seen.length, 1);
   assert.equal(seen[0].creditNote.invoiceId, inv.id);
   assert.equal(seen[0].voided, false);
+  assert.deepEqual(seen[0].creditNote.lines, [{ description: 'Returned tea', qty: 4, unitPrice: 4500 }]);
+  assert.equal(seen[0].creditNote.vat, 2520);
+  expectError(() => sales.createInvoice(ctx, as('clerk'), { customer: 'S', lines: [{ description: 'x', qty: 1, unitPrice: 1, sku: 'bad sku' }] }), 'BAD_INPUT');
+  const withSku = sales.createInvoice(ctx, as('clerk'), { customer: 'S', lines: [{ description: 'Tea', qty: 1, unitPrice: 4500, sku: 'TEA-250' }] });
+  assert.equal(JSON.parse(ctx.db.prepare('SELECT lines FROM invoices WHERE id = ?').get(withSku.id).lines)[0].sku, 'TEA-250');
   const detail = sales.getInvoice(ctx, as('auditor'), inv.id);
   assert.equal(detail.creditNotes.length, 1);
   assert.equal(detail.balance, 51300 - 20520);

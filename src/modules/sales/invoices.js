@@ -286,7 +286,7 @@ function creditNoteRow(ctx, user, inv, input, { voids = false } = {}) {
     const after = refreshInvoice(ctx, inv.id);
     audit(ctx, { userId: user.id, action: 'credit_note.created', type: 'credit_note', id, newValue: { number, invoiceId: inv.id, subtotal: net, vat, total }, reason });
     emit(ctx, 'credit_note.created', {
-      creditNote: { id, number, invoiceId: inv.id, subtotal: net, vat, total }, invoice: { id: inv.id, number: inv.number, customer: inv.customer },
+      creditNote: { id, number, invoiceId: inv.id, lines, subtotal: net, vat, total }, invoice: { id: inv.id, number: inv.number, customer: inv.customer },
       entryId: entry.id, voided: after.status === 'void', userId: user.id,
     });
     return { id, number, subtotal: net, vat, total, entryId: entry.id, invoiceStatus: after.status };
