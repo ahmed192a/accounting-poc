@@ -30,12 +30,17 @@ export default function register(App) {
   const label = (o) => (ar() ? o.ar : o.en);
   const num = (v, d = 1) => (v == null ? t('reportsNA') : Number(v).toLocaleString(App.loc(), { maximumFractionDigits: d }));
 
-  App.onLoad(async () => {
-    if (!has('reports.view')) return;
-    try {
-      [S.dash, S.catalogue, S.filters] = await Promise.all([api('GET', '/api/reports/dashboard'), api('GET', '/api/report-catalogue'), api('GET', '/api/report-filters')]);
-      if (!S.catalogue.reports.some((r) => r.name === S.name)) S.name = S.catalogue.reports[0]?.name ?? 'profit-loss';
-    } catch (e) { S.error = e.message; }
+  App.onLoad(async (home) => {
+    // Use the home payload the hook receives and skip stale loads (user switched meanwhile): avoids needless 403s.
+    if (!home.permissions.includes('reports.view') || home.user?.id !== App.state.userId) { S.dash = null; S.catalogue = null; return; }
+    // Not awaited: the shell renders at once and the reports cards appear when their data arrives.
+    const uid = App.state.userId;
+    Promise.all([api('GET', '/api/reports/dashboard'), api('GET', '/api/report-catalogue'), api('GET', '/api/report-filters')]).then(([d, c, f]) => {
+      if (uid !== App.state.userId) return;
+      [S.dash, S.catalogue, S.filters] = [d, c, f];
+      if (!c.reports.some((r) => r.name === S.name)) S.name = c.reports[0]?.name ?? 'profit-loss';
+      App.render();
+    }).catch((e) => { S.error = e.message; App.render(); });
   });
   App.onUserChange(() => { S.result = null; S.entry = null; S.error = ''; S.dash = null; S.catalogue = null; });
 
