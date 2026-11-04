@@ -2,6 +2,7 @@ import { AppError } from '../../errors.js';
 import { audit, tx } from '../../ledger.js';
 import { requirePerm } from '../../permissions.js';
 import { setting } from '../../db.js';
+import { LIVE_DEFAULTS } from './adapters/eta_client.js';
 import { ADAPTERS, DEFAULT_ADAPTER, listAdapters } from './adapters/index.js';
 
 const HOUR = 3600 * 1000;
@@ -32,7 +33,7 @@ export const DEFAULTS = {
 
 export function seedSettings(db) {
   const ins = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?,?)');
-  for (const [k, v] of Object.entries(DEFAULTS)) ins.run(k, v);
+  for (const [k, v] of Object.entries({ ...LIVE_DEFAULTS, tax_eta_activity_code: '', ...DEFAULTS })) ins.run(k, v);
 }
 
 export const cfg = (db, key) => setting(db, key) ?? DEFAULTS[key];

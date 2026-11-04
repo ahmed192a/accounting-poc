@@ -38,6 +38,9 @@ const get = (db, id) => {
   return d;
 };
 
+// Used by the asynchronous live ETA pump (adapters/eta_live_sync.js), which applies network results with the same state machine.
+export { move as moveDocument, get as getDocumentRow };
+
 export function hashOf(row, prev, payload) {
   return sha256(`${row.seq}|${row.kind}|${row.number}|${row.uuid}|${row.total}|${row.vat}|${prev}|${canonical(payload)}`);
 }
