@@ -72,6 +72,9 @@ list below grows as modules are merged. Per-module details live in `docs/<module
 | `tax` and `eta` | VAT return, mock ETA/ZATCA documents, e-receipt queue with the 24-hour window (MOCK) | [tax](docs/tax.md) |
 | `reports` | Statements, aging, cash flow, dashboard, CSV and print export | [reports](docs/reports.md) |
 | `security` | Sign-in, MFA, API keys, signed webhooks, audit hash chain | [security](docs/security.md) |
+| offline client | Queue sales, invoices, bills and customers without a connection; exactly-once replay with idempotency keys | [offline](docs/offline.md) |
+| live ETA adapter | OAuth, signing, submit and poll against a configurable ETA URL (UNVERIFIED against the real ETA) | [eta-live](docs/eta-live.md) |
+| `tenants` | One SQLite database per company, provisioning, suspend, export, backup | [tenancy](docs/tenancy.md) |
 
 Live API reference: run `npm run openapi` and open `docs/openapi.json` (generated, not committed; CI uploads it as an artifact).
 

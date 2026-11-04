@@ -29,13 +29,13 @@ Goal: make it safe to let more than one person use it.
 Scope: sign-in, MFA, API keys, signed webhooks, audit hash chain ([security.md](security.md)); configurable approval chains,
 purchase orders with 3-way match, suggestion-only assistant ([approvals.md](approvals.md), [assist.md](assist.md)).
 
-## M5 Pilot ready (v0.5.0, not started)
+## M5 Pilot ready (v0.5.0, in progress)
 
-See [ROADMAP.md](../ROADMAP.md). Acceptance: three merchants run a real week on it and their top complaints are triaged.
+Built: offline queue, live ETA adapter (unverified), per-company databases. Open items are checked off in [ROADMAP.md](../ROADMAP.md).
+Acceptance: three merchants run a real week on it and their top complaints are triaged.
 
 ## Known gaps carried forward
 
 - Mock integrations (ETA, ZATCA, FX rates, bank feeds) are not validated against real systems.
-- Some cards request APIs a role cannot call and log a 403 (tracked as an issue).
 - Purchase-order and attachment screens are API-only.
 - No e-mail sending; invites and resets are handed over manually.

@@ -17,6 +17,9 @@ All notable changes. Format based on Keep a Changelog; the project is pre-1.0 an
 - Dockerfile (node:22-alpine, non-root, healthcheck), `.dockerignore`, `docs/DEPLOY.md`.
 - README rewrite, CONTRIBUTING, SECURITY, pull request and issue templates, CODEOWNERS placeholder.
 
+## [0.5.0] - pilot preparation (in progress)
+Offline queue with idempotent replay, live ETA adapter (unverified), per-company databases, fix for 403 noise on user switch.
+
 ## [0.4.0] - control and experience
 Sign-in with MFA, API keys, signed webhooks, audit hash chain (`security`); approval chains, purchase orders with 3-way match,
 suggestion-only assistant (`approvals`).
