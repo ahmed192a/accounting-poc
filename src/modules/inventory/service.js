@@ -1,5 +1,5 @@
 import { AppError, posInt } from '../../errors.js';
-import { postEntry, tx, audit, isoDate, accountBalance } from '../../ledger.js';
+import { postEntry, tx, audit, accountBalance } from '../../ledger.js';
 import { requirePerm, limitFor } from '../../permissions.js';
 import { setting } from '../../db.js';
 
