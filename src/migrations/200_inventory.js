@@ -1,5 +1,7 @@
 // Inventory: warehouses, units of measure, per-item stock settings (the sales module owns `items`; we extend
 // through our own table keyed by sku) and an APPEND-ONLY stock movement table.
+// Core tables (accounts, settings) are NOT touched here: accounts 1300/5300 are ensured by the seed and, for
+// databases seeded before this module existed, lazily before the first posting (see ensureAccounts in service.js).
 export const id = '200_inventory';
 
 export function up(db) {
@@ -62,6 +64,7 @@ CREATE TRIGGER inventory_movements_no_delete BEFORE DELETE ON inventory_movement
   BEGIN SELECT RAISE(ABORT, 'inventory_movements is append-only: post a correcting movement instead'); END;
 
 -- Stock on hand per item and warehouse, derived from the movements (no cached counter that could drift).
+DROP VIEW IF EXISTS inventory_stock_on_hand;
 CREATE VIEW inventory_stock_on_hand AS
   SELECT sku, warehouse_id, SUM(qty) AS qty, SUM(value) AS value FROM inventory_movements GROUP BY sku, warehouse_id;
 
@@ -84,10 +87,5 @@ CREATE TABLE inventory_count_lines (
   variance_qty INTEGER,                       -- filled when posted: counted minus on-hand at posting time
   PRIMARY KEY (count_id, sku)
 );
-
-INSERT OR IGNORE INTO accounts (code, name, name_ar, type) VALUES
-  ('1300', 'Inventory', 'المخزون', 'asset'),
-  ('5300', 'Cost of goods sold', 'تكلفة البضاعة المباعة', 'expense');
-INSERT OR IGNORE INTO settings (key, value) VALUES ('inventory.allow_negative', '1');
 `);
 }
