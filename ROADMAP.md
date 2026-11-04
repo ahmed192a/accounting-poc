@@ -9,17 +9,24 @@ Live status: [GitHub milestones](https://github.com/ahmed192a/accounting-poc/mil
 | M2 Modular foundation | v0.2.0 | done | Auto-discovered modules and migrations, hook bus, CI, Docker, Render blueprint, tax and e-invoice mock |
 | M3 Core accounting | v0.3.0 | done | Banking and reconciliation, inventory with average cost, multi-entity and currency, sales with credit notes, reports, UI shell |
 | M4 Control and experience | v0.4.0 | done | Real sign-in with MFA, API keys and webhooks, audit hash chain, approval chains, 3-way match, safe AI suggestions |
-| M5 Pilot ready | v0.5.0 | next | See below |
+| M5 Pilot ready | v0.5.0 | in progress | Offline client, live ETA adapter and per-company databases are built; real ETA testing, Postgres and the pilot remain |
 
-## M5: Pilot ready (next)
+## M5: Pilot ready (in progress)
 
-Everything below is **not started** and is deliberately outside what a demo can prove.
+Built and merged through pull requests:
 
-- Replace the mock ETA adapter with a real one. Needs sandbox credentials, signing material and the current ETA specification.
-- PostgreSQL support and real multi-tenancy (design in [docs/tenancy.md](docs/tenancy.md)).
-- Offline-first client with a local queue and sync (today the service worker only caches static files).
-- Fix the permission-aware fetching noise ([issue](https://github.com/ahmed192a/accounting-poc/issues)).
-- Pilot with three real merchants, then triage their complaints.
+- [x] Offline-first client with an exactly-once sync queue ([docs/offline.md](docs/offline.md)).
+- [x] Live ETA adapter with OAuth, signing, submit and poll, tested only against a fake server ([docs/eta-live.md](docs/eta-live.md)).
+- [x] Multi-tenancy with one SQLite file per company ([docs/tenancy.md](docs/tenancy.md)).
+- [x] Permission-aware loading (no more 403 noise when switching users).
+
+Still open:
+
+- [ ] Run the live ETA adapter against the real ETA preprod (needs credentials and the current spec) and fix what differs.
+- [ ] PostgreSQL port. Feasibility and counts are in [docs/tenancy.md](docs/tenancy.md); the main cost is making every database call async.
+- [ ] A scheduler for ETA sync, escalation and recurring bills; a UI card for the live ETA settings.
+- [ ] Per-tenant encryption keys, tenant deletion, and splitting demo seeds from reference seeds.
+- [ ] Pilot with three real merchants, then triage their complaints.
 
 ## Principles that stay fixed
 
