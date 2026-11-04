@@ -42,7 +42,7 @@ NOTE: the sales module currently drops `sku` when it stores invoice lines, so re
 passes it through (listed in the request for shared files). Tested by emitting the event directly.
 
 ## API (all under /api/inventory)
-GET `stock`, `stock/:sku`, `movements`, `barcode/:code`, `low-stock`, `warnings`, `counts`, `counts/:id`, `items`, `warehouses`, `units`, `settings`
+GET `overview` (UI bundle), `stock`, `stock/:sku`, `movements`, `barcode/:code`, `low-stock`, `warnings`, `counts`, `counts/:id`, `items`, `warehouses`, `units`, `settings`
 (inventory.view); GET `valuation` (inventory.costs); POST `receive` (inventory.receive); POST `adjust`, `return`, `transfer`,
 `counts`, `counts/:id/post`, `counts/:id/cancel`, PUT `counts/:id` (inventory.adjust); PUT `items/:sku`, POST `warehouses`,
 PATCH `warehouses/:id`, POST `units`, PUT `settings` (inventory.manage). Home widget key `inventory`.
