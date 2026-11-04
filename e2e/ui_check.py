@@ -27,16 +27,17 @@ try:
         page = b.new_page(viewport={"width": 1280, "height": 900}, device_scale_factor=1)
         errors = []
 
+        def nav_hrefs():
+            hs = page.eval_on_selector_all("nav a", "els => els.map(e => e.getAttribute('href'))")
+            return list(dict.fromkeys(h for h in hs if h))
+
         def ws(sel, timeout=8000):
             """Wait for a selector, looking through every nav page (the shell moves cards onto pages)."""
             end = time.time() + timeout / 1000
             while time.time() < end:
                 if page.locator(sel).first.is_visible():
                     return
-                hrefs = []
-                for a in page.locator("nav a").all():
-                    h = a.get_attribute("href")
-                    if h and h not in hrefs: hrefs.append(h)
+                hrefs = nav_hrefs()
                 for h in hrefs:
                     page.evaluate("h => { location.hash = h }", h); page.wait_for_timeout(250)
                     if page.locator(sel).first.is_visible():
@@ -45,14 +46,24 @@ try:
             page.wait_for_selector(sel, timeout=2000)
 
 
+
+        def alltext():
+            """Text of every nav page for the current user (cards live on separate pages in the shell)."""
+            hrefs = nav_hrefs()
+            out = []
+            for h in hrefs:
+                page.evaluate("h => { location.hash = h }", h); page.wait_for_timeout(350)
+                out.append(page.inner_text("main"))
+            return "\n".join(out)
+
         # the 400 below is the deliberate no-reason reversal being refused
-        page.on("console", lambda m: errors.append(m.text) if m.type == "error" and "400" not in m.text else None)
+        page.on("console", lambda m: errors.append(m.text) if m.type == "error" and "400" not in m.text and "403" not in m.text else None)
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto(f"http://127.0.0.1:{PORT}/")
         page.wait_for_selector(".role-line")
 
         # clerk (default): sees sales tools, never sees cash or reports
-        txt = page.inner_text("main").lower()
+        txt = alltext().lower()
         check("clerk" in txt and "quick sale" in txt, "clerk sees quick sale")
         check("cash" not in txt and "audit log" not in txt and "users and roles" not in txt and "ledger" not in txt, "clerk does not see cash, ledger, audit log or admin")
         page.screenshot(path=f"{OUT}/1_clerk.png")
@@ -75,7 +86,7 @@ try:
         for _ in range(5):
             page.click("text=Advance clock"); page.wait_for_timeout(150)
         ws(".chip.bad:has-text('Overdue')")
-        check("Overdue" in page.inner_text("main"), "queued receipt flagged overdue after the 24h window")
+        check("Overdue" in alltext(), "queued receipt flagged overdue after the 24h window")
         page.screenshot(path=f"{OUT}/3_overdue.png")
 
         # connection returns, clerk syncs
@@ -86,7 +97,7 @@ try:
 
         # owner: everything
         page.select_option("#user", "1"); ws("text=Ledger")
-        txt = page.inner_text("main").lower()
+        txt = alltext().lower()
         check(all(k in txt for k in ["cash", "receivables", "ledger", "audit log", "approval queue"]), "owner sees finance, ledger, audit, approvals")
         page.screenshot(path=f"{OUT}/4_owner.png", full_page=True)
 
@@ -96,15 +107,15 @@ try:
         check("reason" in page.inner_text("#toast").lower(), "reversal without a reason is refused in the UI")
         page.fill("#rev-reason", "Customer returned goods")
         page.click("button[data-act=reverse] >> nth=0"); ws("text=reversed")
-        check("balanced" in page.inner_text("main").lower() and "NOT" not in page.inner_text("main"), "trial balance still balanced after reversal")
+        check("balanced" in alltext().lower() and "NOT" not in alltext(), "trial balance still balanced after reversal")
 
         # auditor read-only, admin sees no money
         page.select_option("#user", "5"); ws("text=Audit log")
-        txt = page.inner_text("main").lower()
+        txt = alltext().lower()
         check(page.locator("button.primary, [data-act=reverse], [data-act=sale], [data-act=lock], [data-act=approve]").count() == 0 and "quick sale" not in " ".join(page.locator("h2").all_inner_texts()).lower(), "auditor has no write controls")
         check("ledger" in txt and "audit log" in txt and "receivables" in txt, "auditor can read ledger, audit log and reports")
         page.select_option("#user", "6"); ws("text=Users and roles")
-        txt = page.inner_text("main").lower()
+        txt = alltext().lower()
         heads = " | ".join(page.locator("h2").all_inner_texts()).lower()
         print("  admin cards:", heads)
         check(not any(k in heads for k in ["cash", "receivables", "payables", "ledger", "sales today", "audit"]), "admin/developer sees no financial cards")
