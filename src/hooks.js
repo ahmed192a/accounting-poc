@@ -11,7 +11,10 @@
 //   invoice.paid     { id, total, entryId, userId }
 //   bill.created     { bill: {id, supplier, amount, category}, status, userId }
 //   bill.approved    { bill: {id, supplier, amount, category}, entryId, userId, auto }
+//   banking.imported / banking.reconciled / banking.invoice_settled / banking.bill_settled / banking.settlement_reversed (see docs/banking.md)
 export const EVENTS = ['entry.posted', 'sale.created', 'invoice.created', 'invoice.paid', 'bill.created', 'bill.approved'];
+
+EVENTS.push('banking.imported', 'banking.reconciled', 'banking.invoice_settled', 'banking.bill_settled', 'banking.settlement_reversed');
 
 export function emit(ctx, event, payload) {
   for (const h of ctx.registry?.hooks?.[event] ?? []) h.fn(ctx, payload);
