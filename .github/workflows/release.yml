@@ -24,7 +24,9 @@ jobs:
           node-version: 22
       - name: Create missing tags and releases
         env:
-          GH_TOKEN: ${{ github.token }}
+          # Creating tags on commits that contain workflow files needs a personal access token (repo + workflow scope)
+          # stored as the RELEASE_TOKEN secret; the default token is refused.
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
