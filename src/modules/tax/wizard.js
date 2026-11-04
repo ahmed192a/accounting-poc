@@ -58,6 +58,10 @@ export function completeStep(ctx, user, step, input = {}) {
 // A synthetic document sent to the MOCK sandbox. It is not stored in the document chain.
 function sandboxSubmission(ctx) {
   const adapter = activeAdapter(ctx.db);
+  if (adapter.live) { // the live adapter is asynchronous: the step needs a successful POST /api/tax/live/test first
+    if (!Number(cfg(ctx.db, 'tax_eta_test_ok'))) throw new AppError(409, 'SANDBOX_FAILED', 'Run the live connection test first (POST /api/tax/live/test) and make sure it succeeds');
+    return `live connection test ok (${adapter.id}, UNVERIFIED)`;
+  }
   const doc = adapter.buildDocument({
     kind: 'invoice', number: 'SANDBOX-1', uuid: '00000000-0000-4000-8000-000000000000', issuedAt: new Date(ctx.now()).toISOString(),
     seller: { taxId: cfg(ctx.db, 'tax_reg_number'), name: cfg(ctx.db, 'tax_seller_name'), address: cfg(ctx.db, 'tax_seller_address') },

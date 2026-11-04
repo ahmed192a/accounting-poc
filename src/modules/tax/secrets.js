@@ -6,7 +6,9 @@ import { requirePerm } from '../../permissions.js';
 // Credentials for the (MOCK) tax authority, encrypted at rest with AES-256-GCM under a key derived from the
 // server secret TAX_SECRET_KEY. They are never logged, never returned after saving, never put in audit rows.
 // Without TAX_SECRET_KEY a fixed development key is used and a warning is logged: NOT safe for production.
-export const SECRET_NAMES = ['eta_client_id', 'eta_client_secret', 'eta_signing_pin'];
+// eta_signing_key_pem / eta_signing_cert_pem / eta_signing_pin feed the PEM signer of the LIVE ETA adapter (see docs/eta-live.md).
+export const SECRET_NAMES = ['eta_client_id', 'eta_client_secret', 'eta_signing_pin', 'eta_signing_key_pem', 'eta_signing_cert_pem'];
+const MAX_LEN = { eta_signing_key_pem: 20000, eta_signing_cert_pem: 20000 };
 export const REQUIRED_SECRETS = ['eta_client_id', 'eta_client_secret'];
 
 let warned = false;
@@ -40,7 +42,7 @@ export function readSecret(db, name) {
 export function setSecret(ctx, user, name, value) {
   requirePerm(user, 'tax.configure');
   if (!SECRET_NAMES.includes(name)) throw new AppError(400, 'BAD_INPUT', `Unknown secret "${name}" (known: ${SECRET_NAMES.join(', ')})`);
-  if (typeof value !== 'string' || !value.trim() || value.length > 500) throw new AppError(400, 'BAD_INPUT', 'Secret value must be a non-empty string of at most 500 characters');
+  if (typeof value !== 'string' || !value.trim() || value.length > (MAX_LEN[name] ?? 500)) throw new AppError(400, 'BAD_INPUT', `Secret value must be a non-empty string of at most ${MAX_LEN[name] ?? 500} characters`);
   const e = encrypt(value);
   tx(ctx.db, () => {
     ctx.db.prepare('INSERT INTO tax_secrets (name, iv, tag, ciphertext, updated_by, updated_at) VALUES (?,?,?,?,?,?) ON CONFLICT(name) DO UPDATE SET iv=excluded.iv, tag=excluded.tag, ciphertext=excluded.ciphertext, updated_by=excluded.updated_by, updated_at=excluded.updated_at')
