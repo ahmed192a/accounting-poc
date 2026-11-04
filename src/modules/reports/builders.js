@@ -369,8 +369,9 @@ export const vatSummary = {
     }
     const rows = [...by.values()].map((r, i) => ({ kind: 'line', key: i, ...r, netVat: r.outputVat - r.inputVat }));
     const t = (k) => rows.reduce((s, r) => s + r[k], 0);
-    rows.push({ kind: 'total', key: 'total', period: 'Total', taxableSales: t('taxableSales'), outputVat: t('outputVat'), inputVat: t('inputVat'), netVat: t('netVat') });
-    return { rows, summary: { outputVat: t('outputVat'), inputVat: t('inputVat'), netVat: t('netVat'), inputVatAccountPresent: !!inn }, meta: { disclaimer: 'UNVERIFIED: management summary of ledger VAT accounts, not a VAT return.' } };
+    const sm = { outputVat: t('outputVat'), inputVat: t('inputVat'), netVat: t('netVat'), inputVatAccountPresent: !!inn };
+    rows.push({ kind: 'total', key: 'total', period: 'Total', taxableSales: t('taxableSales'), outputVat: sm.outputVat, inputVat: sm.inputVat, netVat: sm.netVat });
+    return { rows, summary: sm, meta: { disclaimer: 'UNVERIFIED: management summary of ledger VAT accounts, not a VAT return.' } };
   },
 };
 
