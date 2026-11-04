@@ -1,4 +1,5 @@
 import { AppError } from './errors.js';
+import { emit } from './hooks.js';
 
 export const isoDate = (ms) => new Date(ms).toISOString().slice(0, 10);
 
@@ -86,6 +87,7 @@ export function postEntry(ctx, e) {
       newValue: { date, memo: e.memo ?? '', source: e.sourceType ?? 'manual', lines },
       reason: e.reason ?? null,
     });
+    emit(ctx, 'entry.posted', { entryId, date, lines, sourceType: e.sourceType ?? 'manual', sourceId: e.sourceId ?? null, reversesId: e.reversesId ?? null, userId: e.userId ?? null });
     return { id: entryId, date };
   });
 }

@@ -2,6 +2,7 @@ import { readdirSync, existsSync, statSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { tx } from './ledger.js';
+import { EVENTS } from './hooks.js';
 import { registerPermissions, grantBuiltin, limitBuiltin, syncBuiltinRoles } from './permissions.js';
 
 // Backend module loader. Every folder src/modules/<name>/ with an index.js is a module; see
@@ -37,7 +38,7 @@ export async function loadModules(dirs = MODULES_DIR) {
 
   const registry = {
     modules: [], routes: [], permissions: {}, roleGrants: [], roleLimits: [], exportTables: [],
-    seeds: [], widgetFns: [],
+    seeds: [], widgetFns: [], hooks: {},
     buildWidgets(ctx, user) {
       const out = {};
       for (const { module, fn } of this.widgetFns) {
@@ -76,6 +77,11 @@ export async function loadModules(dirs = MODULES_DIR) {
       if (seenRoutes.has(key)) throw new Error(`Route ${key} is declared by both "${seenRoutes.get(key)}" and "${folder}"`);
       seenRoutes.set(key, folder);
       registry.routes.push(c);
+    }
+    for (const [event, fn] of Object.entries(mod.hooks ?? {})) {
+      if (!EVENTS.includes(event)) throw new Error(`Module ${folder}: unknown hook event "${event}" (known: ${EVENTS.join(', ')})`);
+      if (typeof fn !== 'function') throw new Error(`Module ${folder}: hook "${event}" must be a function`);
+      (registry.hooks[event] ??= []).push({ module: folder, fn });
     }
     if (mod.widgets) registry.widgetFns.push({ module: folder, fn: mod.widgets });
     if (mod.seed) registry.seeds.push({ module: folder, seed: mod.seed });

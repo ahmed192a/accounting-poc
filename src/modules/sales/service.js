@@ -3,6 +3,7 @@ import { postEntry, tx, audit, isoDate } from '../../ledger.js';
 import { requirePerm, requireAny } from '../../permissions.js';
 import { setting } from '../../db.js';
 import * as eta from '../eta/adapter.js';
+import { emit } from '../../hooks.js';
 
 const DAY = 24 * 3600 * 1000;
 export const vatOf = (db, subtotal) => Math.round((subtotal * Number(setting(db, 'vat_rate_bp'))) / 10000);
@@ -35,6 +36,7 @@ export function createInvoice(ctx, user, input) {
     const number = `INV-${String(id).padStart(4, '0')}`;
     db.prepare('UPDATE invoices SET number = ? WHERE id = ?').run(number, id);
     audit(ctx, { userId: user.id, action: 'invoice.created', type: 'invoice', id, newValue: { number, total } });
+    emit(ctx, 'invoice.created', { invoice: { id, number, customer: input.customer, lines, subtotal, vat, total, issueDate: issue }, entryId: entry.id, userId: user.id });
     return { id, number, subtotal, vat, total, entryId: entry.id };
   });
 }
@@ -52,6 +54,7 @@ export function payInvoice(ctx, user, id) {
     });
     db.prepare('UPDATE invoices SET paid = 1 WHERE id = ?').run(id);
     audit(ctx, { userId: user.id, action: 'invoice.paid', type: 'invoice', id, newValue: { entryId: entry.id } });
+    emit(ctx, 'invoice.paid', { id, total: inv.total, entryId: entry.id, userId: user.id });
     return { id, entryId: entry.id };
   });
 }
@@ -80,6 +83,7 @@ export function quickSale(ctx, user, input) {
     const sale = { id: Number(res.lastInsertRowid), subtotal, vat, total };
     audit(ctx, { userId: user.id, action: 'sale.created', type: 'sale', id: sale.id, newValue: { total } });
     const receipt = eta.queueReceipt(ctx, sale, items);
+    emit(ctx, 'sale.created', { sale, items, entryId: entry.id, receipt, userId: user.id });
     return { sale, receipt, entryId: entry.id };
   });
 }

@@ -276,3 +276,14 @@ and `ctx.offsetMs`).
 `createSeededContext(path)` in `src/server.js`: `openDb` (run pending migrations) -> `createContext` -> `initContext`
 (register permissions and role grants from all modules, sync built-in roles in the database, run pending seeds) ->
 `createApp(ctx)` (routes from the registry, then static files from `public/`).
+
+## Event hooks (react to other modules without editing them)
+
+A backend module may export `hooks: { '<event>': (ctx, payload) => {...} }`. Emitters call
+`emit(ctx, event, payload)` from `src/hooks.js` inside their own transaction, so a hook that throws rolls
+the whole operation back and a hook that posts a journal entry is atomic with the triggering action.
+Hooks are synchronous, run in module load order, and must be idempotent-safe (never assume you run last).
+The full list of events and payloads is documented at the top of `src/hooks.js`:
+`entry.posted`, `sale.created`, `invoice.created`, `invoice.paid`, `bill.created`, `bill.approved`.
+Need a new event? Add it to `EVENTS` in `src/hooks.js` and emit it from your own module's code; do not
+edit another module's service to call yours.

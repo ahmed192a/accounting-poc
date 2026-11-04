@@ -2,6 +2,7 @@ import { AppError, posInt } from '../../errors.js';
 import { postEntry, tx, audit, accountBalance } from '../../ledger.js';
 import { requirePerm, limitFor } from '../../permissions.js';
 import { setting } from '../../db.js';
+import { emit } from '../../hooks.js';
 
 const EXPENSE_CODES = { purchases: '5000', rent: '5100', utilities: '5200' };
 
@@ -28,11 +29,15 @@ export function createBill(ctx, user, input) {
       .prepare('INSERT INTO bills (supplier, amount, category, status, created_by, created_at) VALUES (?,?,?,?,?,?)')
       .run(input.supplier, amount, input.category, auto ? 'approved' : 'pending_approval', user.id, ctx.now());
     const bill = { id: Number(res.lastInsertRowid), supplier: input.supplier, amount, category: input.category };
+    let entryId = null;
     if (auto) {
       const entry = postBill(ctx, bill, user.id);
+      entryId = entry.id;
       db.prepare('UPDATE bills SET entry_id = ? WHERE id = ?').run(entry.id, bill.id);
     }
     audit(ctx, { userId: user.id, action: auto ? 'bill.auto_approved' : 'bill.submitted', type: 'bill', id: bill.id, newValue: { amount } });
+    emit(ctx, 'bill.created', { bill, status: auto ? 'approved' : 'pending_approval', userId: user.id });
+    if (auto) emit(ctx, 'bill.approved', { bill, entryId, userId: user.id, auto: true });
     return { id: bill.id, status: auto ? 'approved' : 'pending_approval' };
   });
 }
@@ -51,6 +56,7 @@ export function approveBill(ctx, user, id) {
     const entry = postBill(ctx, bill, user.id);
     db.prepare("UPDATE bills SET status = 'approved', approved_by = ?, entry_id = ? WHERE id = ?").run(user.id, entry.id, id);
     audit(ctx, { userId: user.id, action: 'bill.approved', type: 'bill', id, newValue: { entryId: entry.id } });
+    emit(ctx, 'bill.approved', { bill: { id, supplier: bill.supplier, amount: bill.amount, category: bill.category }, entryId: entry.id, userId: user.id, auto: false });
     return { id, entryId: entry.id };
   });
 }
