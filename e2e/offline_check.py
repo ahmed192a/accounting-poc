@@ -55,7 +55,7 @@ try:
         page.click("button[data-act=sale]")
         page.wait_for_selector("#offline-chip", timeout=5000)
         check("1 pending" in page.inner_text("#offline-chip"), "header shows 1 pending")
-        check("queued" in page.inner_text(".note").lower(), "sale screen shows receipt Queued while offline")
+        check("saved on this device" in page.inner_text(".note").lower(), "sale screen says the sale is saved on this device while offline")
         check(len(api("GET", "/api/sales", 3)) == sales_before, "server has NOT received the sale yet")
         page.screenshot(path=f"{OUT}/1_offline_queued.png")
         page.goto(BASE + "/#/offline"); page.wait_for_selector("#offline-list")
