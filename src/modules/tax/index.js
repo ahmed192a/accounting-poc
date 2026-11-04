@@ -41,7 +41,8 @@ export default {
     route('POST', '/api/tax/documents/:id/notes', 'tax.submit', 'Credit or debit note against an invoice document', (c, u, r) => s.createNote(c, u, { ...r.body, documentId: id(r) })),
     route('POST', '/api/tax/sync', 'tax.submit', 'Submit queued documents and poll submitted ones (mock adapters synchronously, the live ETA adapter over the network)', async (c, u) => {
       const out = s.syncDocuments(c, u);
-      try { out.live = await live.liveSync(c, u); } catch (e) { if (typeof e.status !== 'number') throw e; // only AppErrors (e.g. LIVE_NOT_CONFIGURED) are reported; the mock part already succeeded out.live = { error: { code: e.code, message: e.message } }; }
+      // Only AppErrors (e.g. LIVE_NOT_CONFIGURED) are reported inline; the mock part has already succeeded.
+      try { out.live = await live.liveSync(c, u); } catch (e) { if (typeof e.status !== 'number') throw e; out.live = { error: { code: e.code, message: e.message } }; }
       return out;
     }),
     route('POST', '/api/tax/live/sync', 'tax.submit', 'Run only the live ETA submission and status polling', (c, u) => live.liveSync(c, u)),
