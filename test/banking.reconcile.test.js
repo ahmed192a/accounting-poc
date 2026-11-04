@@ -128,9 +128,9 @@ test('data: nothing in banking ever deletes rows; ledger stays balanced after a 
 });
 
 test('overview: one call returns accounts, rules, queue, summary and batches; clerk is refused', () => {
-  const { ctx, as, load } = bank();
+  const { ctx, as, acct, load } = bank();
   load([['2026-03-04', 'Fee', 'f', '-15.00']]);
-  const o = b.overview(ctx, as('manager'), {});
+  const o = b.overview(ctx, as('manager'), { accountId: acct.id });
   assert.equal(o.queue.length, 1);
   assert.equal(o.accounts.length, 3);
   assert.equal(o.batches.length, 1);
