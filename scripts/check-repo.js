@@ -15,7 +15,7 @@ const SKIP_DIRS = new Set(['node_modules', '.git', 'coverage', 'shots', 'artifac
 /** Migration ranges from docs/ARCHITECTURE.md. A migration whose name starts with a module key must stay in its range. */
 export const RANGES = {
   core: [1, 99], banking: [100, 199], inventory: [200, 299], entities: [300, 399], security: [400, 499],
-  tax: [500, 599], reports: [600, 699], approvals: [700, 799], reserved: [800, 899],
+  tax: [500, 599], reports: [600, 699], approvals: [700, 799], reserved: [800, 899], tenancy: [900, 919],
 };
 const NAME_HINTS = {
   bank: 'banking', banking: 'banking', inventory: 'inventory', stock: 'inventory', entities: 'entities', entity: 'entities',

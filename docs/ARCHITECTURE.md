@@ -54,6 +54,7 @@ merged; add a new one. Two files with the same number fail at startup, so stay i
 | 600-699 | reports                         |
 | 700-799 | approvals and AI review         |
 | 800-899 | reserved                        |
+| 900-919 | tenancy (per-tenant databases) |
 
 `001_core` holds the original schema unchanged (including the append-only triggers); `002_module_seeds` tracks which
 module seeds already ran. Prefix your tables with your area (`inventory_*`, `bank_*`) so names never clash.
