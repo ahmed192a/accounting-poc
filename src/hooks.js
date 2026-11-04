@@ -17,6 +17,9 @@ export const EVENTS = ['entry.posted', 'sale.created', 'invoice.created', 'invoi
 //   banking.imported / banking.reconciled / banking.invoice_settled / banking.bill_settled / banking.settlement_reversed (see docs/banking.md)
 
 EVENTS.push('banking.imported', 'banking.reconciled', 'banking.invoice_settled', 'banking.bill_settled', 'banking.settlement_reversed');
+//   sale.refunded    { sale: {id, subtotal, vat, total}, items: [{sku, qty, price}], entryId (the reversal), originalEntryId, reason, receipt: {id, status, uuid}|null, userId }
+//   credit_note.created { creditNote: {id, number, invoiceId, lines: [{description, qty, unitPrice, sku?}], subtotal, vat, total}, invoice: {id, number, customer}, entryId, voided, userId }
+EVENTS.push('sale.refunded', 'credit_note.created'); // sales
 
 export function emit(ctx, event, payload) {
   for (const h of ctx.registry?.hooks?.[event] ?? []) h.fn(ctx, payload);
