@@ -6,3 +6,4 @@ coverage/
 docs/openapi.json
 __pycache__/
 *.pyc
+.video-tmp/
