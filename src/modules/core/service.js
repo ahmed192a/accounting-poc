@@ -1,11 +1,15 @@
 import { AppError } from '../../errors.js';
 import { tx, audit } from '../../ledger.js';
-import { PERMISSIONS, ALL_PERMISSIONS, requirePerm, requireAny, sodConflicts } from '../../permissions.js';
+import { PERMISSIONS, ALL_PERMISSIONS, requirePerm, requireAny, sodConflicts, SOD_PAIRS } from '../../permissions.js';
 import { setting } from '../../db.js';
+import { authRequired } from '../auth/config.js';
 
 // ---------- Users and roles ----------
-export const demoUsers = (ctx) =>
+// With AUTH_REQUIRED=1 the demo user list is not public: it would hand out the names of real accounts.
+const allUsers = (ctx) =>
   ctx.db.prepare('SELECT u.id, u.name, r.name AS role FROM users u JOIN roles r ON r.id = u.role_id ORDER BY u.id').all();
+
+export const demoUsers = (ctx) => (authRequired(ctx) ? [] : allUsers(ctx));
 
 export function listRoles(ctx, user) {
   requireAny(user, ['roles.manage', 'users.manage']);
@@ -29,6 +33,31 @@ export function createRole(ctx, user, input) {
     const id = Number(res.lastInsertRowid);
     audit(ctx, { userId: user.id, action: 'role.created', type: 'role', id, newValue: { name: input.name, permissions: input.permissions, limits } });
     return { id, sodWarnings: sodConflicts(input.permissions) };
+  });
+}
+
+// Edit a CUSTOM role. Built-in roles are never edited (clone one instead). Nobody can put a permission into a role
+// that they do not hold themselves, so a roles.manage holder cannot grant themselves more through a role edit.
+export function updateRole(ctx, user, roleId, input = {}) {
+  requirePerm(user, 'roles.manage');
+  const { db } = ctx;
+  const role = db.prepare('SELECT * FROM roles WHERE id = ?').get(roleId);
+  if (!role) throw new AppError(404, 'NOT_FOUND', 'Role not found');
+  if (role.builtin) throw new AppError(403, 'BUILTIN_ROLE', 'Built-in roles cannot be edited; create a custom role instead');
+  const oldPerms = JSON.parse(role.permissions), oldLimits = JSON.parse(role.limits);
+  const permissions = input.permissions ?? oldPerms;
+  if (!Array.isArray(permissions) || permissions.some((p) => !ALL_PERMISSIONS.includes(p))) throw new AppError(400, 'BAD_INPUT', 'Unknown permission in list');
+  const added = permissions.filter((p) => !oldPerms.includes(p) && !user.permissions.has(p));
+  if (added.length) throw new AppError(403, 'FORBIDDEN', `You cannot grant permissions you do not hold: ${added.slice(0, 5).join(', ')}`);
+  const limits = input.limits ?? oldLimits;
+  if (typeof limits !== 'object' || limits === null || Object.values(limits).some((v) => !Number.isInteger(v) || v < 0)) throw new AppError(400, 'BAD_INPUT', 'Limits must be whole piastre amounts');
+  const name = input.name == null ? role.name : String(input.name).trim();
+  if (!name) throw new AppError(400, 'BAD_INPUT', 'Role name is required');
+  if (name !== role.name && db.prepare('SELECT 1 FROM roles WHERE name = ?').get(name)) throw new AppError(409, 'DUPLICATE', 'A role with this name exists');
+  return tx(db, () => {
+    db.prepare('UPDATE roles SET name = ?, permissions = ?, limits = ? WHERE id = ?').run(name, JSON.stringify(permissions), JSON.stringify(limits), roleId);
+    audit(ctx, { userId: user.id, action: 'role.updated', type: 'role', id: roleId, oldValue: { name: role.name, permissions: oldPerms, limits: oldLimits }, newValue: { name, permissions, limits } });
+    return { id: roleId, name, sodWarnings: sodConflicts(permissions) };
   });
 }
 
@@ -99,7 +128,7 @@ export function widgets(ctx, user) {
   }
   if (has('audit.view')) w.audit = auditSearch(ctx, user).slice(0, 10);
   if (has('users.manage') || has('roles.manage')) {
-    w.admin = { users: demoUsers(ctx), roles: listRoles(ctx, user), permissions: PERMISSIONS };
+    w.admin = { users: allUsers(ctx), roles: listRoles(ctx, user), permissions: PERMISSIONS, sod: SOD_PAIRS.map(([pair, reason]) => ({ pair, reason })) };
   }
   return w;
 }

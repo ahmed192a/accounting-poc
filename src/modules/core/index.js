@@ -33,6 +33,7 @@ export default {
     { method: 'GET', path: '/api/audit', handler: (ctx, u, r) => s.auditSearch(ctx, u, r.query), meta: { summary: 'Search the audit log', permission: 'audit.view' } },
     { method: 'GET', path: '/api/roles', handler: (ctx, u) => s.listRoles(ctx, u), meta: { summary: 'List roles', permission: 'roles.manage' } },
     { method: 'POST', path: '/api/roles', handler: (ctx, u, r) => s.createRole(ctx, u, r.body), meta: { summary: 'Create a custom role', permission: 'roles.manage' } },
+    { method: 'PATCH', path: '/api/roles/:id', handler: (ctx, u, r) => s.updateRole(ctx, u, Number(r.params.id), r.body), meta: { summary: 'Edit a custom role (permissions, limits, name)', permission: 'roles.manage' } },
     { method: 'PATCH', path: '/api/users/:id', handler: (ctx, u, r) => s.setUserRole(ctx, u, Number(r.params.id), r.body.roleId), meta: { summary: 'Assign a role to a user', permission: 'users.manage' } },
     { method: 'GET', path: '/api/export', handler: (ctx, u) => s.exportAll(ctx, u), meta: { summary: 'Export everything, including the audit log', permission: 'export.all' } },
     // Demo only: move the clock forward to see the 24-hour e-receipt deadline in action.

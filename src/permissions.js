@@ -88,6 +88,7 @@ export const SOD_PAIRS = [
   [['purchases.create', 'purchases.approve'], 'Can create and approve the same bill'],
   [['ledger.post', 'period.lock'], 'Can post entries and also move the lock that protects them'],
   [['users.manage', 'purchases.approve'], 'Can grant themselves approval rights'],
+  [['apikeys.manage', 'ledger.post'], 'Can mint an API key that posts entries with their own authority'],
 ];
 
 export function sodConflicts(permissions) {
@@ -100,6 +101,8 @@ export function loadUser(ctx, id) {
     .prepare('SELECT u.id, u.name, u.role_id, r.name AS role, r.permissions, r.limits FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = ?')
     .get(id);
   if (!row) throw new AppError(401, 'UNKNOWN_USER', 'Unknown user');
+  // A deactivated account is refused on every identity path (header, session, API key). No credentials row = active.
+  if (ctx.db.prepare('SELECT 1 FROM auth_credentials WHERE user_id = ? AND active = 0').get(id)) throw new AppError(401, 'ACCOUNT_DISABLED', 'This account is deactivated');
   return {
     id: row.id, name: row.name, roleId: row.role_id, role: row.role,
     permissions: new Set(JSON.parse(row.permissions)),

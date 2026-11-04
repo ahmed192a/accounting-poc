@@ -20,6 +20,8 @@ EVENTS.push('banking.imported', 'banking.reconciled', 'banking.invoice_settled',
 //   sale.refunded    { sale: {id, subtotal, vat, total}, items: [{sku, qty, price}], entryId (the reversal), originalEntryId, reason, receipt: {id, status, uuid}|null, userId }
 //   credit_note.created { creditNote: {id, number, invoiceId, lines: [{description, qty, unitPrice, sku?}], subtotal, vat, total}, invoice: {id, number, customer}, entryId, voided, userId }
 EVENTS.push('sale.refunded', 'credit_note.created'); // sales
+//   auth.user_invited {userId,email,role,invitedBy}, auth.user_deactivated {userId,by}, auth.password_reset {userId,by}, auth.lockout {userId,until,failures}, auth.apikey_created {id,name,userId}
+EVENTS.push('auth.user_invited', 'auth.user_deactivated', 'auth.password_reset', 'auth.lockout', 'auth.apikey_created');
 
 export function emit(ctx, event, payload) {
   for (const h of ctx.registry?.hooks?.[event] ?? []) h.fn(ctx, payload);
