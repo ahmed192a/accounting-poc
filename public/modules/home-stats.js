@@ -26,5 +26,5 @@ export default function register(App) {
 
   App.addCard({ id: 'home.myWork', area: 'main', order: 70, render: ({ widgets: w }) => !w.myWork ? '' : `<div class="card"><h2>${t('myWork')}</h2>
   <div class="sub">${t('invoices')}</div>${w.myWork.invoices.length ? `<table>${w.myWork.invoices.map((i) => `<tr><td>${esc(i.number)} ${esc(i.customer)}</td><td class="num">${money(i.total)}</td><td><span class="chip ${i.paid ? 'good' : ''}">${i.paid ? t('paid') : t('open')}</span></td></tr>`).join('')}</table>` : `<div class="empty">${t('nothing')}</div>`}
-  <div class="sub" style="margin-top:8px">${t('bills')}</div>${w.myWork.bills.length ? `<table>${w.myWork.bills.map((b) => `<tr><td>#${b.id} ${esc(b.supplier)}</td><td class="num">${money(b.amount)}</td><td><span class="chip ${b.status === 'approved' ? 'good' : 'warn'}">${t(b.status === 'approved' ? 'approved' : 'pending')}</span></td></tr>`).join('')}</table>` : `<div class="empty">${t('nothing')}</div>`}</div>` });
+  <div class="sub mt">${t('bills')}</div>${w.myWork.bills.length ? `<table>${w.myWork.bills.map((b) => `<tr><td>#${b.id} ${esc(b.supplier)}</td><td class="num">${money(b.amount)}</td><td><span class="chip ${b.status === 'approved' ? 'good' : 'warn'}">${t(b.status === 'approved' ? 'approved' : 'pending')}</span></td></tr>`).join('')}</table>` : `<div class="empty">${t('nothing')}</div>`}</div>` });
 }
