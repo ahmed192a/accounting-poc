@@ -11,7 +11,9 @@
 //   invoice.paid     { id, total, entryId, userId }
 //   bill.created     { bill: {id, supplier, amount, category}, status, userId }
 //   bill.approved    { bill: {id, supplier, amount, category}, entryId, userId, auto }
-export const EVENTS = ['entry.posted', 'sale.created', 'invoice.created', 'invoice.paid', 'bill.created', 'bill.approved'];
+//   tax.document_created { id, kind, number, uuid, status, adapter }   tax.document_status { id, from, to, reason }  (MOCK tax documents)
+export const EVENTS = ['entry.posted', 'sale.created', 'invoice.created', 'invoice.paid', 'bill.created', 'bill.approved',
+  'tax.document_created', 'tax.document_status'];
 
 export function emit(ctx, event, payload) {
   for (const h of ctx.registry?.hooks?.[event] ?? []) h.fn(ctx, payload);
