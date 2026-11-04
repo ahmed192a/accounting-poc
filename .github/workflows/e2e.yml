@@ -31,7 +31,7 @@ jobs:
       - run: playwright install --with-deps chromium
       # Runs ui_check.py, every e2e/*_check.py and smoke_all_modules.py (see e2e/run_all.py).
       - run: python3 e2e/run_all.py
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: e2e-screenshots
