@@ -24,7 +24,10 @@ export default {
 `;
 
 test('module loader: the five built-in modules load, core first, with their contributions merged', () => {
-  assert.deepEqual(defaultRegistry.modules.map((m) => m.name), ['core', 'eta', 'ledger', 'purchases', 'sales']);
+  const names = defaultRegistry.modules.map((m) => m.name);
+  assert.equal(names[0], 'core');
+  for (const n of ['core', 'eta', 'ledger', 'purchases', 'sales']) assert.ok(names.includes(n), n); // others may be added by feature agents
+  assert.deepEqual(names.slice(1), [...names.slice(1)].sort(), 'alphabetical after core')
   assert.ok(defaultRegistry.routes.some((r) => r.method === 'POST' && r.path === '/api/sales/quick' && r.module === 'sales'));
   assert.ok(defaultRegistry.routes.every((r) => typeof r.handler === 'function'));
   assert.ok('purchases.approve' in defaultRegistry.permissions);
@@ -78,7 +81,8 @@ test('module loader: seeds run once per database, core seed first', async () => 
   assert.deepEqual(order, ['aaa']);
   assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM users').get().n, 6, 'core seeded before/independently of aaa');
   assert.equal(registry.modules[0].name, 'core');
-  assert.deepEqual(ctx.db.prepare('SELECT module FROM module_seeds ORDER BY module').all().map((r) => r.module), ['aaa', 'core', 'eta', 'ledger', 'purchases', 'sales']);
+  const seeded = ctx.db.prepare('SELECT module FROM module_seeds').all().map((r) => r.module);
+  for (const n of ['aaa', 'core', 'eta', 'ledger', 'purchases', 'sales']) assert.ok(seeded.includes(n), `${n} seeded`);
 });
 
 test('module loader: contract violations fail loudly at load time', async () => {

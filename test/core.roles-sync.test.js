@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { createSeededContext } from '../src/server.js';
+import { loadMigrations, runMigrations, MIGRATIONS_DIR } from '../src/db.js';
 import { loadModules, MODULES_DIR, initContext } from '../src/modules.js';
-import { syncBuiltinRoles, loadUser, BUILTIN_ROLES } from '../src/permissions.js';
+import { syncBuiltinRoles, loadUser, BUILTIN_ROLES, ALL_PERMISSIONS } from '../src/permissions.js';
 import { createRole } from '../src/modules/core/service.js';
 import { tempModules } from './helpers.js';
 
@@ -14,15 +16,22 @@ const roleRow = (ctx, name) => {
   return { ...r, permissions: JSON.parse(r.permissions), limits: JSON.parse(r.limits) };
 };
 
-test('built-in roles are created from module grants, with the original permission sets and limits', () => {
+test('built-in roles are created from module grants, with (at least) the original permission sets and limits', () => {
   const ctx = createSeededContext();
-  const set = (n) => [...roleRow(ctx, n).permissions].sort();
-  assert.deepEqual(set('clerk'), ['purchases.create', 'purchases.view', 'sales.create', 'sales.view']);
-  assert.deepEqual(set('admin'), ['eta.manage', 'export.all', 'roles.manage', 'users.manage']);
-  assert.deepEqual(set('auditor'), ['audit.view', 'ledger.view', 'purchases.view', 'reports.view', 'sales.view']);
-  assert.deepEqual(roleRow(ctx, 'clerk').limits, { 'purchases.create': 500000 });
-  assert.deepEqual(roleRow(ctx, 'manager').limits, { 'purchases.approve': 2000000 });
-  assert.equal(roleRow(ctx, 'owner').permissions.length, 17);
+  // Superset checks: later modules may grant more atoms, but the original grants must never go missing.
+  const has = (n, atoms) => { const p = roleRow(ctx, n).permissions; for (const a of atoms) assert.ok(p.includes(a), `${n} should hold ${a}`); };
+  has('clerk', ['purchases.create', 'purchases.view', 'sales.create', 'sales.view']);
+  has('admin', ['eta.manage', 'export.all', 'roles.manage', 'users.manage']);
+  has('auditor', ['audit.view', 'ledger.view', 'purchases.view', 'reports.view', 'sales.view']);
+  has('manager', ['sales.view', 'sales.create', 'purchases.view', 'purchases.approve', 'banking.view', 'reports.view', 'period.lock', 'audit.view', 'eta.manage']);
+  has('accountant', ['sales.view', 'purchases.view', 'banking.view', 'ledger.view', 'ledger.post', 'ledger.reverse', 'reports.view', 'audit.view']);
+  // and the originally-withheld ones stay withheld
+  assert.ok(!roleRow(ctx, 'clerk').permissions.includes('ledger.view'));
+  assert.ok(!roleRow(ctx, 'admin').permissions.includes('reports.view'));
+  assert.equal(roleRow(ctx, 'clerk').limits['purchases.create'], 500000);
+  assert.equal(roleRow(ctx, 'manager').limits['purchases.approve'], 2000000);
+  assert.ok(roleRow(ctx, 'owner').permissions.length >= 17);
+  assert.deepEqual(roleRow(ctx, 'owner').permissions.slice().sort(), [...ALL_PERMISSIONS].sort(), 'owner holds every registered atom');
   assert.ok(ctx.db.prepare('SELECT builtin FROM roles').all().every((r) => r.builtin === 1));
 });
 
@@ -98,7 +107,14 @@ test('persistent database from before migrations/modules existed is adopted with
   const path = join(dir, 'legacy.db');
   try {
     const first = createSeededContext(path);
-    first.db.exec('DROP TABLE module_seeds; DROP TABLE schema_migrations'); // what the old code left behind
+    // Turn it into what the pre-migration code left behind: only the 001_core tables, no bookkeeping tables.
+    const core = (await loadMigrations(MIGRATIONS_DIR)).filter((m) => m.id === '001_core');
+    const base = new DatabaseSync(':memory:');
+    runMigrations(base, core);
+    const keep = new Set(base.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name <> 'schema_migrations'").all().map((r) => r.name));
+    for (const { name } of first.db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all()) {
+      if (!keep.has(name)) first.db.exec(`DROP TABLE ${name}`);
+    }
     first.db.close();
     const ctx = createSeededContext(path); // must not crash on UNIQUE constraints
     assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM users').get().n, 6);
