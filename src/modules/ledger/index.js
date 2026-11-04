@@ -29,7 +29,7 @@ export default {
     { method: 'GET', path: '/api/ledger/fiscal', handler: (ctx, u, r) => getFiscal(ctx, u, entityIdOf(r.query)), meta: { summary: 'Fiscal year settings of an entity', permission: 'ledger.view' } },
     { method: 'GET', path: '/api/ledger/closings', handler: (ctx, u, r) => closing.listClosings(ctx, u, entityIdOf(r.query)), meta: { summary: 'Year-end closings of an entity', permission: 'ledger.view' } },
     { method: 'POST', path: '/api/ledger/close-year', handler: (ctx, u, r) => closing.closeYear(ctx, u, { ...r.body, entityId: entityIdOf(r.body) }), meta: { summary: 'Post the year-end closing entry to retained earnings 3000', permission: 'ledger.close' } },
-    { method: 'POST', path: '/api/ledger/closings/:id/reverse', handler: (ctx, u, r) => closing.reverseClosing(ctx, u, Number(r.params.id), r.body.reason), meta: { summary: 'Reverse a closing entry (reopens the year)', permission: 'ledger.close' } },
+    { method: 'POST', path: '/api/ledger/closings/:id/reverse', handler: (ctx, u, r) => closing.reverseClosing(ctx, u, Number(r.params.id), r.body.reason, r.body), meta: { summary: 'Reverse a closing entry (reopens the year)', permission: 'ledger.close' } },
   ],
   widgets: s.widgets,
   seed,

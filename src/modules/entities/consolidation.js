@@ -80,8 +80,8 @@ export function consolidate(ctx, user, input = {}) {
   return {
     asOf, currency: report.code, entities: entityInfo, rows, totalDebit, totalCredit, balanced: totalDebit === totalCredit,
     netProfit: rev - exp,
-    eliminations: { receivable: n1, payable: -n2, difference: n1 + n2 },
-    translationAdjustment: -sumNet,
+    eliminations: { receivable: n1, payable: 0 - n2, difference: n1 + n2 },
+    translationAdjustment: 0 - sumNet, // signed (debit minus credit) amount of translation difference and rounding carried to 3100
   };
 }
 

@@ -40,7 +40,7 @@ export function closeYear(ctx, user, input = {}) {
 
   return tx(db, () => {
     const e = postEntry(ctx, {
-      userId: user.id, entityId, date: end, lines, sourceType: 'year_close', sourceId: fy,
+      userId: user.id, entityId, date: end, lines, allowInactive: true, sourceType: 'year_close', sourceId: fy,
       memo: `Year-end closing, fiscal year ${fy}`, confirmSoftLock: input.confirmSoftLock, reason: input.reason,
     });
     const id = Number(db.prepare('INSERT INTO entities_closings (entity_id, fiscal_year, period_start, period_end, entry_id, net_profit, created_by, created_at) VALUES (?,?,?,?,?,?,?,?)')
@@ -50,13 +50,14 @@ export function closeYear(ctx, user, input = {}) {
   });
 }
 
-export function reverseClosing(ctx, user, closingId, reason) {
+/** Reopen a year. The reversal is dated the closing date itself so period views stay right; lift a lock first. */
+export function reverseClosing(ctx, user, closingId, reason, opt = {}) {
   requirePerm(user, 'ledger.close');
   const c = ctx.db.prepare('SELECT * FROM entities_closings WHERE id = ?').get(closingId);
   if (!c) throw new AppError(404, 'NOT_FOUND', 'Closing not found');
   assertEntityAccess(ctx, user, c.entity_id);
   return tx(ctx.db, () => {
-    const r = reverseEntry(ctx, user.id, c.entry_id, reason);
+    const r = reverseEntry(ctx, user.id, c.entry_id, reason, { date: c.period_end, confirmSoftLock: opt.confirmSoftLock });
     audit(ctx, { userId: user.id, action: 'year.reopened', type: 'closing', id: closingId, reason });
     return { id: closingId, reversalId: r.id };
   });

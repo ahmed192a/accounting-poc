@@ -150,7 +150,8 @@ export function postEntry(ctx, e) {
   });
 }
 
-export function reverseEntry(ctx, userId, entryId, reason) {
+/** Opt: { date, confirmSoftLock } post the reversal on a given date (default today) and confirm a soft lock. */
+export function reverseEntry(ctx, userId, entryId, reason, opt = {}) {
   const { db } = ctx;
   if (!reason || !String(reason).trim()) throw new AppError(400, 'REASON_REQUIRED', 'A reversal needs a reason');
   const entry = db.prepare('SELECT * FROM journal_entries WHERE id = ?').get(entryId);
@@ -169,7 +170,7 @@ export function reverseEntry(ctx, userId, entryId, reason) {
     }));
   return postEntry(ctx, {
     userId, lines, reason, reversesId: entryId, sourceType: 'reversal', sourceId: entryId,
-    entityId: entry.entity_id, allowInactive: true,
+    entityId: entry.entity_id, allowInactive: true, date: opt.date, confirmSoftLock: opt.confirmSoftLock,
     memo: `Reversal of entry #${entryId}: ${entry.memo}`,
   });
 }
