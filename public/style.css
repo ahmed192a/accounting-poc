@@ -260,6 +260,7 @@ html[lang="ar"] .palette-group { text-transform:none; letter-spacing:0; }
 .onboard { margin-bottom:var(--s4); border-color:var(--accent); }
 .onboard ol { margin:var(--s2) 0 0; padding-inline-start:var(--s5); display:grid; gap:var(--s2); }
 .onboard-head { display:flex; align-items:center; gap:var(--s3); }
+.mt { margin-top:var(--s2); }
 .push-end { margin-inline-start:auto; }
 .onboard-head strong { font-size:var(--fs-md); }
 .swatches { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:var(--s2); }
