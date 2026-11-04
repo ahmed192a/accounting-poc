@@ -85,7 +85,7 @@ export default function register(App) {
         <label>${t('reportsFrom')} ${field('from', 'date', S.from)}</label><label>${t('reportsTo')} ${field('to', 'date', S.to)}</label>
         ${cur?.comparable ? `<label>${t('reportsCompare')} <select data-act="reports-field" data-f="compare"><option value="none">${t('reportsNone')}</option><option value="previous" ${S.compare === 'previous' ? 'selected' : ''}>${t('reportsPrev')}</option><option value="year" ${S.compare === 'year' ? 'selected' : ''}>${t('reportsYear')}</option></select></label>` : ''}
         ${['general-ledger', 'account-transactions'].includes(S.name) ? `<label>${t('reportsAccount')} ${field('account', 'text', S.account, 'size="6"')}</label>` : ''}
-        <button class="primary" data-act="reports-run">${t('reportsRun')}</button>
+        <button data-act="reports-run">${t('reportsRun')}</button>
         ${has('reports.export') ? `<button data-act="reports-export" data-fmt="csv">${t('reportsCsv')}</button><button data-act="reports-export" data-fmt="html">${t('reportsPrint')}</button>` : ''}</div>
       <div class="row"><label>${t('reportsLoad')} <select id="reports-filter-pick">${S.filters.filter((f) => f.report === S.name).map((f) => `<option value="${f.id}">${esc(f.name)}${f.shared ? ' *' : ''}</option>`).join('')}</select></label>
         <button class="small" data-act="reports-apply">${t('reportsApply')}</button><button class="small" data-act="reports-delfilter">${t('reportsDelete')}</button>

@@ -13,7 +13,7 @@ const compact = (p) => { // piastres -> short EGP text, integer arithmetic on wh
 const full = (p) => (p / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function frame(id, title, desc, inner, lang) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-labelledby="${id}-t ${id}-d" dir="${lang === 'ar' ? 'rtl' : 'ltr'}" font-family="system-ui,Segoe UI,Tahoma,Arial,sans-serif" font-size="11">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-labelledby="${id}-t ${id}-d" dir="${lang === 'ar' ? 'rtl' : 'ltr'}" font-family="system-ui,Segoe UI,Tahoma,Arial,sans-serif" font-size="14">
 <title id="${id}-t">${esc(title)}</title><desc id="${id}-d">${esc(desc)}</desc>${inner}</svg>`;
 }
 const empty = (id, title, msg, lang) => frame(id, title, msg, `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="currentColor">${esc(msg)}</text>`, lang);
