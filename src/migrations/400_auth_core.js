@@ -43,6 +43,7 @@ CREATE TABLE auth_sessions (
   expires_at INTEGER NOT NULL,             -- idle expiry, pushed forward on use
   absolute_expires_at INTEGER NOT NULL,
   revoked_at INTEGER,
+  replaced INTEGER NOT NULL DEFAULT 0,      -- 1 = superseded by a rotation; only valid for the short grace period
   ip TEXT,
   user_agent TEXT
 );
