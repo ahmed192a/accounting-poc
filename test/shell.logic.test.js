@@ -62,13 +62,14 @@ test('html builders: escape user text, wire aria for errors, strip card titles',
 
 function loadSw() {
   const listeners = {}; const self = { location: { origin: 'http://x' }, addEventListener: (n, f) => { listeners[n] = f; }, skipWaiting() {}, clients: { claim() {} } };
-  vm.runInNewContext(readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8'), { self, URL, caches: { open: async () => ({ match: async () => undefined, put() {}, add: async () => {} }), keys: async () => [] }, fetch: async () => ({ ok: true, type: 'basic', clone() { return this; } }) });
+  vm.runInNewContext(readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8'), { self, URL, caches: { open: async () => ({ match: async () => undefined, put() {}, add: async () => {} }), keys: async () => [], delete: async () => true }, fetch: async () => ({ ok: true, type: 'basic', clone() { return this; } }) });
   return listeners;
 }
-const fetchEvent = (url, method = 'GET') => { const e = { request: { url: 'http://x' + url, method, mode: 'cors' }, responded: false, respondWith() { this.responded = true; } }; return e; };
-test('service worker: never touches the API or non-GET requests, handles static assets', () => {
+const fetchEvent = (url, method = 'GET') => { const e = { request: { url: 'http://x' + url, method, mode: 'cors' }, responded: false, respondWith(p) { this.responded = true; Promise.resolve(p).catch(() => {}); }, waitUntil() {} }; return e; };
+test('service worker: only the listed read-only API endpoints are cached (stale-while-revalidate), static assets handled, the rest untouched', () => {
   const { fetch: onFetch } = loadSw();
-  for (const [u, m] of [['/api/home', 'GET'], ['/api/ui-modules', 'GET'], ['/api/sales/quick', 'POST'], ['/app.js', 'POST']]) { const e = fetchEvent(u, m); onFetch(e); assert.equal(e.responded, false, `${m} ${u}`); }
+  for (const [u, m] of [['/api/auth/me', 'GET'], ['/api/journal', 'GET'], ['/app.js', 'POST']]) { const e = fetchEvent(u, m); onFetch(e); assert.equal(e.responded, false, `${m} ${u}`); }
+  for (const [u, m] of [['/api/home', 'GET'], ['/api/ui-modules', 'GET'], ['/api/sales/quick', 'POST']]) { const e = fetchEvent(u, m); e.request.headers = { get: () => null }; onFetch(e); assert.equal(e.responded, true, `${m} ${u} (offline module)`); }
   for (const u of ['/', '/app.js', '/style.css', '/lib/ui.js', '/modules/sales.js', '/icons/icon.svg', '/manifest.json']) { const e = fetchEvent(u); onFetch(e); assert.equal(e.responded, true, u); }
   const cross = { request: { url: 'http://evil/app.js', method: 'GET' }, respondWith() { assert.fail('cross-origin'); } }; onFetch(cross);
 });

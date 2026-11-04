@@ -24,7 +24,7 @@ const T = {
     'sh.themeToDark': 'Switch to dark theme', 'sh.themeToLight': 'Switch to light theme', 'sh.language': 'Language',
     'sh.account': 'Account menu', 'sh.signOut': 'Sign out', 'sh.digits': 'Digits', 'sh.digitsAuto': 'Automatic', 'sh.digitsLatn': 'Western (0123)', 'sh.digitsArab': 'Arabic-Indic (٠١٢٣)',
     'sh.close': 'Close', 'sh.dismiss': 'Dismiss', 'sh.cancel': 'Cancel', 'sh.confirm': 'Please confirm', 'sh.required': 'This field is required.',
-    'sh.loadFailed': 'Could not load the data', 'sh.retry': 'Try again', 'sh.offline': 'You are offline. The app opens, but data and changes need a connection. Saving offline is not available yet.',
+    'sh.loadFailed': 'Could not load the data', 'sh.retry': 'Try again', 'sh.offline': 'You are offline. New quick sales, invoices, bills and customers are saved on this device and sent when you reconnect; everything else needs a connection. Figures shown may be out of date.',
     'sh.offlineShort': 'No connection. Nothing was saved.', 'sh.online': 'Back online.',
     'sh.notFound': 'Page not found', 'sh.notFoundText': 'This address does not match any page.', 'sh.noAccess': 'This page is not available for your role.',
     'sh.goHome': 'Go to Home', 'sh.homeEmpty': 'Nothing to show yet', 'sh.homeEmptyText': 'No cards are available for your role. Ask an administrator to review your permissions.',
@@ -53,7 +53,7 @@ const T = {
     'sh.themeToDark': 'التبديل إلى المظهر الداكن', 'sh.themeToLight': 'التبديل إلى المظهر الفاتح', 'sh.language': 'اللغة',
     'sh.account': 'قائمة الحساب', 'sh.signOut': 'تسجيل الخروج', 'sh.digits': 'الأرقام', 'sh.digitsAuto': 'تلقائي', 'sh.digitsLatn': 'غربية (0123)', 'sh.digitsArab': 'عربية هندية (٠١٢٣)',
     'sh.close': 'إغلاق', 'sh.dismiss': 'إخفاء', 'sh.cancel': 'إلغاء', 'sh.confirm': 'يرجى التأكيد', 'sh.required': 'هذا الحقل مطلوب.',
-    'sh.loadFailed': 'تعذّر تحميل البيانات', 'sh.retry': 'حاول مرة أخرى', 'sh.offline': 'أنت غير متصل. يفتح التطبيق، لكن البيانات والتغييرات تحتاج إلى اتصال. الحفظ دون اتصال غير متاح بعد.',
+    'sh.loadFailed': 'تعذّر تحميل البيانات', 'sh.retry': 'حاول مرة أخرى', 'sh.offline': 'أنت غير متصل. تُحفظ على هذا الجهاز عمليات البيع السريع والفواتير وفواتير الموردين والعملاء الجدد وتُرسل عند عودة الاتصال؛ أما بقية العمليات فتحتاج إلى اتصال. قد تكون الأرقام المعروضة قديمة.',
     'sh.offlineShort': 'لا يوجد اتصال. لم يتم حفظ شيء.', 'sh.online': 'عاد الاتصال.',
     'sh.notFound': 'الصفحة غير موجودة', 'sh.notFoundText': 'هذا العنوان لا يطابق أي صفحة.', 'sh.noAccess': 'هذه الصفحة غير متاحة لدورك.',
     'sh.goHome': 'الذهاب إلى الرئيسية', 'sh.homeEmpty': 'لا شيء لعرضه بعد', 'sh.homeEmptyText': 'لا توجد بطاقات متاحة لدورك. اطلب من المسؤول مراجعة صلاحياتك.',
@@ -99,10 +99,14 @@ async function api(method, path, body) {
   const headers = { 'content-type': 'application/json' };
   if (state.users.length) headers['x-user-id'] = String(state.userId); // demo identity switcher only
   if (App.csrfToken && method !== 'GET' && method !== 'HEAD') headers['x-csrf-token'] = App.csrfToken;
+  const idemKey = App.offlineKey?.(method, path); // offline module: Idempotency-Key for queueable writes, so a retry/replay never double-posts
+  if (idemKey) headers['idempotency-key'] = idemKey;
   let res;
   try {
     res = await fetch(path, { method, headers, credentials: 'same-origin', body: body ? JSON.stringify(body) : undefined });
   } catch {
+    const queued = idemKey && App.offlineWrite ? await App.offlineWrite(method, path, body, idemKey) : null; // saved on this device, sent when back online
+    if (queued) return queued;
     const e = new Error(t('sh.offlineShort')); e.code = 'NETWORK'; throw e;
   }
   const text = await res.text();
