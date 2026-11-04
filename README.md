@@ -20,6 +20,8 @@ It has zero npm dependencies: Node 22, built-in `node:sqlite`, `node:http`, `nod
 
 ## Quick start
 
+Full walkthrough: [docs/RUN.md](docs/RUN.md).
+
 Needs Node 22.13 or newer. No `npm install`.
 
 ```
@@ -35,19 +37,41 @@ python3 e2e/run_all.py                   # browser checks (pip install playwrigh
 Docker and hosting: see [docs/DEPLOY.md](docs/DEPLOY.md). Free hosting on Render works from `render.yaml`
 (sleeps when idle, data resets on restart).
 
+## Screenshots
+
+| | |
+| --- | --- |
+| ![Owner home](docs/img/role-owner.png) Owner home | ![Clerk home](docs/img/role-clerk.png) Clerk: no cash or ledger |
+| ![Reports](docs/img/page-reports.png) Reports dashboard | ![Banking](docs/img/page-banking.png) Bank import and reconciliation |
+| ![Inventory](docs/img/page-inventory.png) Inventory | ![Arabic](docs/img/arabic-rtl.png) Arabic, right-to-left |
+
+Demo video (walkthrough of the six roles): [docs/img/demo.mp4](docs/img/demo.mp4).
+
+## Plan and releases
+
+[ROADMAP.md](ROADMAP.md) lists the milestones, [docs/PLAN.md](docs/PLAN.md) the scope of each, and
+[docs/RUN.md](docs/RUN.md) explains step by step how to run and try it. Each milestone has a
+[GitHub release](https://github.com/ahmed192a/accounting-poc/releases).
+
 ## Feature map by module
 
 Each feature is a folder `src/modules/<name>/` plus `public/modules/<name>.js`; the loader discovers them, so the
 list below grows as modules are merged. Per-module details live in `docs/<module>.md` when present.
 
-| Module | What it does |
-| --- | --- |
-| `core` | Home dashboard, demo users, users and roles, audit search, full export |
-| `ledger` | Journal entries, reversal with a reason, period lock (soft/hard), trial balance, reports |
-| `sales` | Items, quick sale (POS), invoices, 14% VAT setting |
-| `purchases` | Bills with amount limits, auto-approval and no self-approval |
-| `eta` | Mock Egypt ETA adapter, e-receipt queue with the 24-hour window and rejection handling (MOCK) |
-| other modules | banking, inventory, entities and currency, auth, tax, reports, approvals and assistant are built in parallel branches; see `docs/` once merged |
+| Module | What it does | Docs |
+| --- | --- | --- |
+| `core` | Home dashboard, demo users, users and roles, audit search, full export | [ARCHITECTURE](docs/ARCHITECTURE.md) |
+| `ledger` | Journal entries, reversal with a reason, period lock, manual journals, year-end closing | [entities](docs/entities.md) |
+| `entities` | Multiple entities, currencies and rates, chart of accounts, consolidation | [entities](docs/entities.md) |
+| `sales` | Customers, quotes, invoices, credit notes, quick sale with discounts, printable invoices | [sales](docs/sales.md) |
+| `purchases` | Suppliers, bills, purchase orders with 3-way match, payments | [approvals](docs/approvals.md) |
+| `approvals` | Configurable approval chains, delegation, escalation, no self-approval | [approvals](docs/approvals.md) |
+| `assist` | Suggestion-only document reading (heuristic, MOCK), always reversible | [assist](docs/assist.md) |
+| `inventory` | Stock, average cost, COGS, stocktake, low-stock | [inventory](docs/inventory.md) |
+| `banking` | CSV import, matching rules, reconciliation | [banking](docs/banking.md) |
+| `tax` and `eta` | VAT return, mock ETA/ZATCA documents, e-receipt queue with the 24-hour window (MOCK) | [tax](docs/tax.md) |
+| `reports` | Statements, aging, cash flow, dashboard, CSV and print export | [reports](docs/reports.md) |
+| `security` | Sign-in, MFA, API keys, signed webhooks, audit hash chain | [security](docs/security.md) |
 
 Live API reference: run `npm run openapi` and open `docs/openapi.json` (generated, not committed; CI uploads it as an artifact).
 

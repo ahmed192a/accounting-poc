@@ -5,6 +5,9 @@ All notable changes. Format based on Keep a Changelog; the project is pre-1.0 an
 ## [Unreleased]
 
 ### Added
+- Roadmap, plan, step-by-step run guide, screenshots and demo video (`scripts/capture-media.py`).
+
+### Added
 - Repository tooling: `npm run coverage` (Node built-in coverage with thresholds and a job summary), `npm run check`
   (syntax, no dependencies, secrets pattern scan, module/migration/UI conventions, routes without summary), `npm run openapi`
   (generates `docs/openapi.json` from the module registry), `npm run smoke` (server deploy check).
@@ -13,6 +16,16 @@ All notable changes. Format based on Keep a Changelog; the project is pre-1.0 an
 - `e2e/smoke_all_modules.py` (six demo users, every navigation page) and `e2e/run_all.py` (runs every browser check).
 - Dockerfile (node:22-alpine, non-root, healthcheck), `.dockerignore`, `docs/DEPLOY.md`.
 - README rewrite, CONTRIBUTING, SECURITY, pull request and issue templates, CODEOWNERS placeholder.
+
+## [0.4.0] - control and experience
+Sign-in with MFA, API keys, signed webhooks, audit hash chain (`security`); approval chains, purchase orders with 3-way match,
+suggestion-only assistant (`approvals`).
+
+## [0.3.0] - core accounting
+Banking, inventory, multi-entity and currency, customers/quotes/credit notes, reports and dashboards, navigation shell and PWA.
+
+## [0.2.0] - modular foundation
+Module loader, migrations, event hooks, CI workflows, Docker, Render blueprint, tax module (mock adapters).
 
 ## [0.1.0] - proof of concept
 
