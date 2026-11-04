@@ -36,6 +36,7 @@ export default function register(App) {
   App.onUserChange(() => { roleMsg = null; secret = null; accounts = []; keys = []; hooksData = null; deliveries = []; overview = null; verifyResult = null; });
 
   App.onLoad(async (home) => {
+    const has = (p) => home.permissions.includes(p); // App.has reads state.home, which is set only after the hooks ran
     const safe = async (fn, fallback) => { try { return await fn(); } catch { return fallback; } };
     if (has('users.invite')) accounts = await safe(() => api('GET', '/api/auth/users'), []);
     if (has('apikeys.manage')) keys = await safe(() => api('GET', '/api/apikeys'), []);

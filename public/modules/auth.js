@@ -34,7 +34,9 @@ export default function register(App) {
   const setErr = (msg) => { const el = document.getElementById('auth-err'); if (el) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; } };
   const field = (id, label, type = 'text', extra = '') => `<label style="display:block;margin-top:8px">${label}<br><input type="${type}" id="${id}" ${extra} style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px"></label>`;
 
-  const loginScreen = () => `<div class="card" style="max-width:420px;margin:40px auto">
+  let demoMode = false;
+  fetch('/api/auth/status').then((r) => r.json()).then((s) => { demoMode = !!s.demoCredentials; }).catch(() => {});
+  const loginScreen = () => `<div style="max-width:420px;margin:0 auto">
     <h2>${t('authSignIn')}</h2>
     ${field('auth-email', t('authEmail'), 'email', 'autocomplete="username"')}${field('auth-pw', t('authPassword'), 'password', 'autocomplete="current-password"')}
     <div id="auth-mfa" style="display:none">${field('auth-code', t('authCode'), 'text', 'inputmode="numeric" autocomplete="one-time-code"')}${field('auth-backup', t('authBackup'))}</div>
@@ -46,7 +48,7 @@ export default function register(App) {
     <details style="margin-top:8px"><summary>${t('authInvite')}</summary>
       ${field('auth-i-token', t('authInviteToken'))}${field('auth-i-pw', t('authChoosePw'), 'password', 'autocomplete="new-password"')}
       <div class="row"><button data-act="auth-accept">${t('authAccept')}</button></div></details>
-    <p class="sub">${t('authDemoHint')}</p></div>`;
+    ${demoMode ? `<p class="sub">${t('authDemoHint')}</p>` : ''}</div>`;
 
   const finish = (data) => { App.csrfToken = data.csrfToken; me = null; App.loginDone?.(); };
   if (App.setLoginScreen) App.setLoginScreen(loginScreen);
