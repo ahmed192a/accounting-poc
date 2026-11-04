@@ -404,9 +404,11 @@ function render() {
 async function load() {
   if (!state.home) { $('main').innerHTML = skeleton({ cards: 4 }); }
   try {
+    const uid = state.userId;
     const home = await api('GET', '/api/home');
+    if (uid !== state.userId) return; // the user switched while this was loading; a newer load is running
     state.home = home; // set first: load hooks call has(), which must see the NEW user's permissions (was the source of 403 noise)
-    for (const hook of loadHooks) await hook(home);
+    for (const hook of loadHooks) { if (uid !== state.userId) return; await hook(home); }
     render();
   } catch (e) {
     if (e.code === 'AUTH_REQUIRED') return;
