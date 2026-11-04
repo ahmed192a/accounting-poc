@@ -24,11 +24,16 @@ export function compileRoute(module, r) {
 /**
  * Discover and validate the modules in a folder and merge their contributions. Pure: it touches
  * no global state (initContext applies the result). `core` always goes first, the rest alphabetically.
+ * `dirs` is one folder or an array of folders (tests add a temp folder holding a fake module).
  */
-export async function loadModules(dir = MODULES_DIR) {
-  const names = readdirSync(dir)
-    .filter((n) => !n.startsWith('.') && !n.startsWith('_') && statSync(join(dir, n)).isDirectory())
-    .sort((a, b) => (a === 'core' ? -1 : b === 'core' ? 1 : a < b ? -1 : a > b ? 1 : 0));
+export async function loadModules(dirs = MODULES_DIR) {
+  const found = [];
+  for (const dir of [].concat(dirs)) {
+    for (const n of readdirSync(dir)) {
+      if (!n.startsWith('.') && !n.startsWith('_') && statSync(join(dir, n)).isDirectory()) found.push({ folder: n, dir });
+    }
+  }
+  found.sort((a, b) => (a.folder === 'core' ? -1 : b.folder === 'core' ? 1 : a.folder < b.folder ? -1 : a.folder > b.folder ? 1 : 0));
 
   const registry = {
     modules: [], routes: [], permissions: {}, roleGrants: [], roleLimits: [], exportTables: [],
@@ -46,7 +51,7 @@ export async function loadModules(dir = MODULES_DIR) {
   };
   const seenRoutes = new Map();
 
-  for (const folder of names) {
+  for (const { folder, dir } of found) {
     const file = join(dir, folder, 'index.js');
     if (!existsSync(file)) throw new Error(`Module folder "${folder}" has no index.js`);
     const mod = (await import(pathToFileURL(file).href)).default;
