@@ -1,0 +1,7 @@
+# Placeholder: replace with real owners/teams once reviewers are assigned.
+# GitHub applies the LAST matching pattern, so keep specific rules below general ones.
+# How areas are divided between contributors is described in README.md ("Ownership model").
+*                  @ahmed192a
+/.github/          @ahmed192a
+/src/ledger.js     @ahmed192a
+/src/migrations/   @ahmed192a

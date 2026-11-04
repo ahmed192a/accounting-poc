@@ -1,6 +1,7 @@
 # Render blueprint: deploys the PoC as a free web service straight from this repo.
-# Free instances sleep after ~15 minutes idle (first request afterwards takes about a minute)
-# and data is in memory, so it resets whenever the service restarts. Fine for a demo.
+# Free instances sleep after ~15 minutes idle (the first request afterwards can take about a minute)
+# and have no persistent disk, so data resets whenever the service restarts or redeploys. Fine for a demo.
+# See docs/DEPLOY.md for Docker and other options.
 services:
   - type: web
     name: accounting-poc
@@ -12,3 +13,11 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
+      # DB_PATH is not set on purpose: the free plan has no disk, so the database lives in memory.
+      # Secrets: let Render generate them instead of committing values.
+      # - key: AUTH_REQUIRED          # enable once real sign-in ships (see docs/DEPLOY.md)
+      #   value: "true"
+      # - key: INITIAL_OWNER_PASSWORD
+      #   sync: false                 # you type it in the Render dashboard
+      # - key: TAX_SECRET_KEY
+      #   generateValue: true

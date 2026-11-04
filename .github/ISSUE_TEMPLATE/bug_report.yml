@@ -1,0 +1,26 @@
+name: Bug report
+description: Something does not work as described
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw instead.
+    validations:
+      required: true
+  - type: input
+    id: user
+    attributes:
+      label: Signed in as (demo user / role)
+  - type: input
+    id: env
+    attributes:
+      label: Where it runs
+      description: Node version, local / Docker / Render, browser.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console or server output
+      render: text
+      description: Do not paste secrets or real customer data.

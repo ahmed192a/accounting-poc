@@ -1,0 +1,53 @@
+name: checks
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: repo checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # syntax, no dependencies, secrets scan, module/migration/UI conventions, routes without summary (warning)
+      - run: npm run check
+
+  openapi:
+    name: openapi
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run openapi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: docs/openapi.json
+          retention-days: 14
+
+  deploy-check:
+    name: deploy check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Starts the server and requires HTTP 200 from /healthz, / and /api/ui-modules.
+      - run: npm run smoke
