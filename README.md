@@ -1,87 +1,116 @@
-# Accounting app proof of concept
+# Accounting PoC
 
-A small, dependency-free proof of concept for the riskiest ideas in the requirements plan. It is a
-demo, not a product: identity is a user switcher, the ETA is a mock, and data lives in memory.
+[![test](https://github.com/ahmed192a/accounting-poc/actions/workflows/test.yml/badge.svg)](https://github.com/ahmed192a/accounting-poc/actions/workflows/test.yml)
+[![checks](https://github.com/ahmed192a/accounting-poc/actions/workflows/checks.yml/badge.svg)](https://github.com/ahmed192a/accounting-poc/actions/workflows/checks.yml)
+[![e2e](https://github.com/ahmed192a/accounting-poc/actions/workflows/e2e.yml/badge.svg)](https://github.com/ahmed192a/accounting-poc/actions/workflows/e2e.yml)
 
-## Run it
+A web accounting application for small businesses and markets (Egypt first, global later), built as a
+**proof of concept**. It is not production software: read [SECURITY.md](SECURITY.md) before putting anything real in it.
 
-Needs Node 22.13 or newer. No `npm install` (it uses Node's built-in SQLite).
+What it tries to do differently from the incumbents:
+
+- an **append-only, auditable ledger**: the database itself refuses edits and deletes; corrections are reversals with a reason
+- **granular roles** (owner, manager, clerk, accountant, auditor, admin/developer) with role-specific home views
+- **honest, flat pricing** and a **free, full-fidelity data export** that includes the audit log
+- **safe, reversible AI assistance** (suggestions that a person approves)
+- **offline-first** and **Arabic/RTL** from the start
+- native **Egypt ETA e-invoice / e-receipt** support (currently a labelled mock)
+
+It has zero npm dependencies: Node 22, built-in `node:sqlite`, `node:http`, `node:test` and a vanilla JavaScript UI.
+
+## Quick start
+
+Needs Node 22.13 or newer. No `npm install`.
 
 ```
-npm start          # http://localhost:3000
-npm test           # 47 tests
-PORT=4000 DB_PATH=./data.db npm start   # optional: another port, data kept in a file
-python3 e2e/ui_check.py   # browser end-to-end check (Python Playwright + Chromium)
+npm start                                # http://localhost:3000, data in memory
+PORT=4000 DB_PATH=./data.db npm start    # another port, data kept in a file
+npm test                                 # unit and HTTP tests
+npm run coverage                         # tests with coverage thresholds
+npm run check                            # repository conventions (syntax, no dependencies, secrets, module rules)
+npm run openapi                          # writes docs/openapi.json from the route declarations
+python3 e2e/run_all.py                   # browser checks (pip install playwright; playwright install chromium)
 ```
 
-Open the app, then use the "Signed in as" box to switch between the six demo users.
+Docker and hosting: see [docs/DEPLOY.md](docs/DEPLOY.md). Free hosting on Render works from `render.yaml`
+(sleeps when idle, data resets on restart).
 
-## Host it free
+## Feature map by module
 
-GitHub Pages cannot run this (it needs a Node server), so use Render's free tier:
+Each feature is a folder `src/modules/<name>/` plus `public/modules/<name>.js`; the loader discovers them, so the
+list below grows as modules are merged. Per-module details live in `docs/<module>.md` when present.
 
-1. Sign in at https://render.com with your GitHub account.
-2. New + > Blueprint > pick this repository. Render reads `render.yaml` and deploys.
-3. Open the URL Render gives you. Free instances sleep when idle, so the first load can take a minute,
-   and data resets on restart. Health check: `/healthz`.
+| Module | What it does |
+| --- | --- |
+| `core` | Home dashboard, demo users, users and roles, audit search, full export |
+| `ledger` | Journal entries, reversal with a reason, period lock (soft/hard), trial balance, reports |
+| `sales` | Items, quick sale (POS), invoices, 14% VAT setting |
+| `purchases` | Bills with amount limits, auto-approval and no self-approval |
+| `eta` | Mock Egypt ETA adapter, e-receipt queue with the 24-hour window and rejection handling (MOCK) |
+| other modules | banking, inventory, entities and currency, auth, tax, reports, approvals and assistant are built in parallel branches; see `docs/` once merged |
 
-Tests also run on every push through GitHub Actions (`.github/workflows/test.yml`).
+Live API reference: run `npm run openapi` and open `docs/openapi.json` (generated, not committed; CI uploads it as an artifact).
 
-## What it proves
+## Role guide
 
-| Idea from the plan | Where | How to see it |
+| Demo user | Role | Sees and does |
 | --- | --- | --- |
-| Append-only double-entry ledger; corrections are reversals with a reason | `src/ledger.js`, `src/migrations/001_core.js` | Sign in as Hossam (accountant), try Reverse with and without a reason |
-| The database itself refuses edits and deletes of the journal and audit log | triggers in `src/migrations/001_core.js` | `test/ledger.test.js` |
-| Period lock: soft (warn, then reason) and hard (block) | `src/ledger.js` | Sign in as Karim (manager), set a lock, then post |
-| Roles are bundles of permission atoms, so views and actions follow permissions, not role names | `src/permissions.js`, role grants in `src/modules/*/index.js`, `home()` in `src/modules/core/service.js` | Sign in as each user; compare home views. As Omar (admin) create a role and assign it |
-| Sensitive areas are separate grants (payroll, bank balances) | `src/permissions.js` | Sara (clerk) never sees cash; Omar (admin) sees no financial data |
-| Amount limits, auto-approval, and no self-approval | `src/modules/purchases/service.js` | Sara creates a bill over 1,000 EGP; Karim approves it |
-| Separation-of-duties warnings when a role holds conflicting permissions | `sodConflicts` | The owner role shows a warning in the admin view |
-| Offline e-receipt queue with a 24-hour window and rejection handling | `src/modules/eta/adapter.js` | Karim: "Simulate offline". Sara: make a sale. Footer: advance the clock |
-| Full-fidelity export including the audit log | `exportAll` in `src/modules/core/service.js` | Omar: "Export everything" |
-| Arabic RTL and English | `public/app.js`, `public/modules/*.js` | Language button |
-| Multi-entity and multi-currency fields present from day one | `entity_id`, `currency` columns | `src/migrations/001_core.js` |
+| Mona | owner | Everything, including all permissions and approvals |
+| Karim | manager | Approvals, period lock, ETA connection, reports |
+| Sara | clerk | Quick sale and invoices; never sees cash, ledger or audit log |
+| Hossam | accountant | Ledger, reversals, reports, bills |
+| Laila | auditor | Read-only: ledger, audit log, reports; no write controls |
+| Omar | admin / developer | Users and roles, export; sees no financial data |
 
-## What it does not do (yet)
+Roles are bundles of permission atoms (`area.action`); screens and actions follow permissions, never role names.
+The owner role shows a separation-of-duties warning because it can create and approve the same bill.
 
-- Real authentication, sessions, MFA, per-tenant isolation (a header names the user)
-- The real ETA protocol: signing, authentication, schemas, GS1 validation. `src/modules/eta/adapter.js` is a mock behind
-  a small adapter interface; the 24-hour window and rejection rules come from the research notes and
-  must be checked against ETA documentation
-- Bank and wallet statement import, inventory, reports beyond the trial balance and profit and loss
-- Invoices are not sent to the ETA (only POS receipts are); VAT is a flat 14% setting, not per-item rates
-- Offline in the browser: the "offline" here is the connection between the server and the mock ETA.
-  A real offline-first client (local database, operation queue, client IDs) is the next big piece
+## Demo walkthrough (5 minutes)
+
+1. Open the app as **Sara** (default). Sell two items: the live total includes VAT. Note there is no cash or ledger card.
+2. Switch to **Karim**, click "Simulate offline" (the ETA connection goes down).
+3. Back as **Sara**, make another sale: it completes and the e-receipt is queued.
+4. As anyone, use "Advance clock" five times (30 hours): the queued receipt turns "Overdue" past the 24-hour window.
+5. As **Karim**, "Go online"; as **Sara**, "Sync queue now": the receipt is submitted.
+6. As **Hossam**, try "Reverse" on a ledger entry with no reason (refused), then with a reason (a mirror entry is posted, the trial balance stays balanced).
+7. As **Laila** confirm nothing can be changed; as **Omar** create a role and export everything.
+8. Press the language button for Arabic and right-to-left layout.
+
+## Continuous integration
+
+| Workflow | Jobs |
+| --- | --- |
+| `test` | `npm test` on Node 22 and 24; coverage thresholds with a job summary |
+| `checks` | repository checks; OpenAPI generation (artifact); deploy check (server answers 200 on `/healthz`, `/`, `/api/ui-modules`) |
+| `e2e` | Playwright: `ui_check.py`, every `*_check.py`, and `smoke_all_modules.py` (all six users, every navigation page); screenshots uploaded on failure |
+
+Dependabot keeps the GitHub Actions versions current. CodeQL is intentionally not enabled (it needs paid features on private repositories).
+
+## Contributing and the ownership model
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). In short: a feature owns only its own
+module folder, UI file, migration number range and tests; shared files (`src/db.js`, `src/server.js`,
+`src/permissions.js`, `public/app.js`, `public/style.css`, ...) have named owners and change only through them. New features are added
+without editing shared files, so parallel work does not conflict. `.github/CODEOWNERS` is a placeholder to fill in.
+
+## What it does not do yet
+
+- Real authentication, sessions, MFA and tenant isolation (a header names the user); see [SECURITY.md](SECURITY.md)
+- The real ETA protocol (signing, authentication, schemas, GS1 validation); the adapter is a mock and its rules must be checked against ETA documentation
+- A real offline-first client (local database, operation queue, client IDs)
 - Concurrency and scale testing
+
+Money is stored as whole piastres (never floats). Demo-only endpoint `POST /api/dev/advance-clock` moves the clock.
 
 ## Layout
 
 ```
-src/db.js             opens SQLite, runs migrations, shared helpers (owned file)
-src/migrations/       NNN_name.js schema steps, applied in order and recorded (see numbering ranges)
-src/ledger.js         posting, reversal, period lock, reports (owned file)
-src/permissions.js    permission registry, built-in role sync, separation-of-duties rules (owned file)
-src/errors.js         AppError, posInt
-src/modules.js        discovers src/modules/*/index.js and merges routes, permissions, widgets, seeds
-src/modules/core/     home, demo users, users and roles, audit search, export
-src/modules/sales/    items, quick sale, invoices
-src/modules/purchases/ bills and approval
-src/modules/ledger/   entries, reversal, period lock, reports
-src/modules/eta/      mock ETA adapter, receipt queue, routes
-src/server.js         HTTP router over the module routes + static server for public/ (owned file)
-public/index.html     small shell
-public/app.js         App object: cards, i18n, events, helpers (owned file)
-public/style.css      shared styles (owned file)
-public/modules/       one file per feature: home-stats, sales, purchases, eta, ledger, audit, admin
-test/                 47 tests (node:test), test/**/*.test.js
-e2e/ui_check.py       browser end-to-end script
-docs/ARCHITECTURE.md  module contract, migration ranges, ownership rules
+src/db.js, src/ledger.js, src/permissions.js, src/server.js, src/modules.js   shared core (named owners)
+src/migrations/       NNN_name.js schema steps, applied in order (see numbering ranges)
+src/modules/<name>/   backend modules (routes, permissions, widgets, seeds)
+public/               vanilla JS shell (index.html, app.js, style.css) and public/modules/<name>.js
+test/                 node:test files named <module>.<topic>.test.js
+e2e/                  Playwright (Python) browser checks, run_all.py runs them all
+scripts/              coverage-check.js, check-repo.js, openapi.js, smoke-server.js
+docs/                 ARCHITECTURE.md, DEPLOY.md, per-module docs
 ```
-
-New features are added as new files in `src/modules/<name>/`, `public/modules/<name>.js`,
-`src/migrations/` (own number range) and `test/`, without editing the shared files. Read
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before contributing.
-
-Money is stored as whole piastres (never floats). Demo-only endpoint `POST /api/dev/advance-clock`
-moves the clock so you can see the 24-hour deadline without waiting.
