@@ -9,8 +9,9 @@ Needs Node 22.13 or newer. No `npm install` (it uses Node's built-in SQLite).
 
 ```
 npm start          # http://localhost:3000
-npm test           # 27 tests
+npm test           # 47 tests
 PORT=4000 DB_PATH=./data.db npm start   # optional: another port, data kept in a file
+python3 e2e/ui_check.py   # browser end-to-end check (Python Playwright + Chromium)
 ```
 
 Open the app, then use the "Signed in as" box to switch between the six demo users.
@@ -30,22 +31,22 @@ Tests also run on every push through GitHub Actions (`.github/workflows/test.yml
 
 | Idea from the plan | Where | How to see it |
 | --- | --- | --- |
-| Append-only double-entry ledger; corrections are reversals with a reason | `src/ledger.js`, `src/db.js` | Sign in as Hossam (accountant), try Reverse with and without a reason |
-| The database itself refuses edits and deletes of the journal and audit log | triggers in `src/db.js` | `test/ledger.test.js` |
+| Append-only double-entry ledger; corrections are reversals with a reason | `src/ledger.js`, `src/migrations/001_core.js` | Sign in as Hossam (accountant), try Reverse with and without a reason |
+| The database itself refuses edits and deletes of the journal and audit log | triggers in `src/migrations/001_core.js` | `test/ledger.test.js` |
 | Period lock: soft (warn, then reason) and hard (block) | `src/ledger.js` | Sign in as Karim (manager), set a lock, then post |
-| Roles are bundles of permission atoms, so views and actions follow permissions, not role names | `src/permissions.js`, `home()` in `src/services.js` | Sign in as each user; compare home views. As Omar (admin) create a role and assign it |
+| Roles are bundles of permission atoms, so views and actions follow permissions, not role names | `src/permissions.js`, role grants in `src/modules/*/index.js`, `home()` in `src/modules/core/service.js` | Sign in as each user; compare home views. As Omar (admin) create a role and assign it |
 | Sensitive areas are separate grants (payroll, bank balances) | `src/permissions.js` | Sara (clerk) never sees cash; Omar (admin) sees no financial data |
-| Amount limits, auto-approval, and no self-approval | `createBill`, `approveBill` | Sara creates a bill over 1,000 EGP; Karim approves it |
+| Amount limits, auto-approval, and no self-approval | `src/modules/purchases/service.js` | Sara creates a bill over 1,000 EGP; Karim approves it |
 | Separation-of-duties warnings when a role holds conflicting permissions | `sodConflicts` | The owner role shows a warning in the admin view |
-| Offline e-receipt queue with a 24-hour window and rejection handling | `src/eta.js` | Karim: "Simulate offline". Sara: make a sale. Footer: advance the clock |
-| Full-fidelity export including the audit log | `exportAll` | Omar: "Export everything" |
-| Arabic RTL and English | `public/index.html` | Language button |
-| Multi-entity and multi-currency fields present from day one | `entity_id`, `currency` columns | `src/db.js` |
+| Offline e-receipt queue with a 24-hour window and rejection handling | `src/modules/eta/adapter.js` | Karim: "Simulate offline". Sara: make a sale. Footer: advance the clock |
+| Full-fidelity export including the audit log | `exportAll` in `src/modules/core/service.js` | Omar: "Export everything" |
+| Arabic RTL and English | `public/app.js`, `public/modules/*.js` | Language button |
+| Multi-entity and multi-currency fields present from day one | `entity_id`, `currency` columns | `src/migrations/001_core.js` |
 
 ## What it does not do (yet)
 
 - Real authentication, sessions, MFA, per-tenant isolation (a header names the user)
-- The real ETA protocol: signing, authentication, schemas, GS1 validation. `src/eta.js` is a mock behind
+- The real ETA protocol: signing, authentication, schemas, GS1 validation. `src/modules/eta/adapter.js` is a mock behind
   a small adapter interface; the 24-hour window and rejection rules come from the research notes and
   must be checked against ETA documentation
 - Bank and wallet statement import, inventory, reports beyond the trial balance and profit and loss
@@ -57,15 +58,30 @@ Tests also run on every push through GitHub Actions (`.github/workflows/test.yml
 ## Layout
 
 ```
-src/db.js           schema, append-only triggers
-src/ledger.js       posting, reversal, period lock, reports
-src/permissions.js  permission atoms, built-in roles, separation-of-duties rules
-src/eta.js          mock ETA adapter and receipt queue
-src/services.js     business operations and role-based home views
-src/server.js       HTTP API and static page
-public/index.html   the web UI
-test/               27 tests (node:test)
+src/db.js             opens SQLite, runs migrations, shared helpers (owned file)
+src/migrations/       NNN_name.js schema steps, applied in order and recorded (see numbering ranges)
+src/ledger.js         posting, reversal, period lock, reports (owned file)
+src/permissions.js    permission registry, built-in role sync, separation-of-duties rules (owned file)
+src/errors.js         AppError, posInt
+src/modules.js        discovers src/modules/*/index.js and merges routes, permissions, widgets, seeds
+src/modules/core/     home, demo users, users and roles, audit search, export
+src/modules/sales/    items, quick sale, invoices
+src/modules/purchases/ bills and approval
+src/modules/ledger/   entries, reversal, period lock, reports
+src/modules/eta/      mock ETA adapter, receipt queue, routes
+src/server.js         HTTP router over the module routes + static server for public/ (owned file)
+public/index.html     small shell
+public/app.js         App object: cards, i18n, events, helpers (owned file)
+public/style.css      shared styles (owned file)
+public/modules/       one file per feature: home-stats, sales, purchases, eta, ledger, audit, admin
+test/                 47 tests (node:test), test/**/*.test.js
+e2e/ui_check.py       browser end-to-end script
+docs/ARCHITECTURE.md  module contract, migration ranges, ownership rules
 ```
+
+New features are added as new files in `src/modules/<name>/`, `public/modules/<name>.js`,
+`src/migrations/` (own number range) and `test/`, without editing the shared files. Read
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before contributing.
 
 Money is stored as whole piastres (never floats). Demo-only endpoint `POST /api/dev/advance-clock`
 moves the clock so you can see the 24-hour deadline without waiting.
