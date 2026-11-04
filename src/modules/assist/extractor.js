@@ -185,7 +185,7 @@ export function extractHeuristic(text, opts = {}) {
   let vat = null;
   for (const l of lines) {
     const f = fold(l);
-    if (!isVatLine(l, f) || has(f, ['vat number', 'tax id', 'tax no', 'tax reg', 'رقم ضريبي', 'الرقم الضريبي', 'سجل ضريبي'])) continue;
+    if (!isVatLine(l, f) || has(f, SUBTOTAL_KW) || has(f, ['vat number', 'tax id', 'tax no', 'tax reg', 'رقم ضريبي', 'الرقم الضريبي', 'سجل ضريبي'])) continue;
     const a = amountsIn(l);
     if (a.length) { vat = a[a.length - 1]; confidence.vat = 0.85; reasons.vat = 'Taken from the VAT / ضريبة line.'; break; }
     const pct = percentIn(l);
