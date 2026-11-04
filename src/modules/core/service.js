@@ -1,6 +1,6 @@
 import { AppError } from '../../errors.js';
 import { tx, audit } from '../../ledger.js';
-import { PERMISSIONS, ALL_PERMISSIONS, requirePerm, requireAny, sodConflicts } from '../../permissions.js';
+import { PERMISSIONS, ALL_PERMISSIONS, requirePerm, requireAny, sodConflicts, SOD_PAIRS } from '../../permissions.js';
 import { setting } from '../../db.js';
 import { authRequired } from '../auth/config.js';
 
@@ -128,7 +128,7 @@ export function widgets(ctx, user) {
   }
   if (has('audit.view')) w.audit = auditSearch(ctx, user).slice(0, 10);
   if (has('users.manage') || has('roles.manage')) {
-    w.admin = { users: allUsers(ctx), roles: listRoles(ctx, user), permissions: PERMISSIONS };
+    w.admin = { users: allUsers(ctx), roles: listRoles(ctx, user), permissions: PERMISSIONS, sod: SOD_PAIRS.map(([pair, reason]) => ({ pair, reason })) };
   }
   return w;
 }
