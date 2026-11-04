@@ -27,12 +27,13 @@ export default function register(App) {
   App.onLoad(async (home) => {
     if (!home.permissions.includes('tenants.view')) return;
     try { current = await api('GET', '/api/tenant'); } catch { current = null; }
-    try {
-      list = (await api('GET', '/api/tenants')).tenants;
-      state = 'ok';
-      const stats = await Promise.all(list.map((x) => api('GET', '/api/tenants/' + encodeURIComponent(x.slug)).then((r) => r.stats).catch(() => null)));
-      list = list.map((x, i) => ({ ...x, stats: stats[i] }));
-    } catch (e) { list = null; state = e.code === 'TENANCY_DISABLED' ? 'disabled' : e.code === 'OPERATOR_ONLY' ? 'operator' : null; }
+    // Look before calling: /api/tenant always answers, so a single-tenant server or a non-operator company costs no failing request.
+    if (!current) state = null;
+    else if (!current.enabled) { state = 'disabled'; list = null; }
+    else if (!current.tenant.isDefault) { state = 'operator'; list = null; }
+    else {
+      try { await reload(); state = 'ok'; } catch { state = null; }
+    }
     if (home === App.state.home) App.render();
   });
 
@@ -57,13 +58,11 @@ export default function register(App) {
     },
   });
 
-  const act = (fn, ok) => run(async () => { msg = null; try { await fn(); msg = { cls: 'good', text: ok }; } catch (e) { msg = { cls: 'warn', text: e.message }; } await reload(); });
+  const act = (fn, ok) => run(async () => { msg = null; try { await fn(); msg = { cls: 'good', text: ok }; } catch (e) { msg = { cls: 'warn', text: e.message }; } try { await reload(); } catch { /* keep the old list */ } });
   async function reload() {
-    try {
-      list = (await api('GET', '/api/tenants')).tenants;
-      const stats = await Promise.all(list.map((x) => api('GET', '/api/tenants/' + encodeURIComponent(x.slug)).then((r) => r.stats).catch(() => null)));
-      list = list.map((x, i) => ({ ...x, stats: stats[i] }));
-    } catch { /* keep the old list */ }
+    list = (await api('GET', '/api/tenants')).tenants;
+    const stats = await Promise.all(list.map((x) => api('GET', '/api/tenants/' + encodeURIComponent(x.slug)).then((r) => r.stats).catch(() => null)));
+    list = list.map((x, i) => ({ ...x, stats: stats[i] }));
   }
   App.on('tenants-create', () => act(async () => {
     await api('POST', '/api/tenants', { slug: val('tenants-slug'), name: val('tenants-name'), ownerEmail: val('tenants-email'), ownerPassword: val('tenants-pw') });
