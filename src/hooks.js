@@ -11,7 +11,9 @@
 //   invoice.paid     { id, total, entryId, userId }
 //   bill.created     { bill: {id, supplier, amount, category}, status, userId }
 //   bill.approved    { bill: {id, supplier, amount, category}, entryId, userId, auto }
+//   auth.user_invited {userId,email,role,invitedBy}, auth.user_deactivated {userId,by}, auth.password_reset {userId,by}, auth.lockout {userId,until,failures}, auth.apikey_created {id,name,userId}
 export const EVENTS = ['entry.posted', 'sale.created', 'invoice.created', 'invoice.paid', 'bill.created', 'bill.approved'];
+EVENTS.push('auth.user_invited', 'auth.user_deactivated', 'auth.password_reset', 'auth.lockout', 'auth.apikey_created');
 
 export function emit(ctx, event, payload) {
   for (const h of ctx.registry?.hooks?.[event] ?? []) h.fn(ctx, payload);

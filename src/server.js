@@ -5,7 +5,13 @@ import { resolve, sep, extname } from 'node:path';
 import { openDb, createContext } from './db.js';
 import { defaultRegistry, initContext } from './modules.js';
 import { AppError } from './errors.js';
-import { loadUser } from './permissions.js';
+import { configure } from './modules/auth/config.js';
+import { RateLimiter, rateHeaders } from './modules/auth/ratelimit.js';
+import { securityHeaders, newRequestId, makeHttp, authenticate, checkOrigin, isSecureRequest } from './modules/auth/http.js';
+import { ensureFirstRun } from './modules/auth/service.js';
+import { sealAudit } from './modules/auth/auditchain.js';
+import { processDeliveries } from './modules/auth/webhooks.js';
+import { sha256Hex } from './modules/auth/crypto.js';
 
 // Routes, permissions, widgets and seeds all come from src/modules/*; this file only routes HTTP
 // to them and serves public/. Nothing here changes when a feature is added.
@@ -26,22 +32,33 @@ const TYPES = {
   '.woff2': 'font/woff2',
 };
 
-function readBody(req) {
+function readBody(req, max) {
   return new Promise((resolve, reject) => {
-    let data = '';
+    if (Number(req.headers['content-length']) > max) { req.resume(); return reject(new AppError(413, 'TOO_LARGE', `Request body is larger than ${max} bytes`)); }
+    const chunks = [];
+    let size = 0, over = false;
     req.on('data', (c) => {
-      data += c;
-      if (data.length > 1e6) reject(new AppError(413, 'TOO_LARGE', 'Request too large'));
+      if (over) return; // keep draining so the 413 can be sent, but keep nothing
+      size += c.length;
+      if (size > max) { over = true; chunks.length = 0; return reject(new AppError(413, 'TOO_LARGE', `Request body is larger than ${max} bytes`)); }
+      chunks.push(c);
     });
+    req.on('error', () => reject(new AppError(400, 'BAD_REQUEST', 'Request aborted')));
     req.on('end', () => {
-      if (!data) return resolve({});
-      try { resolve(JSON.parse(data)); } catch { reject(new AppError(400, 'BAD_JSON', 'Body must be valid JSON')); }
+      if (over) return;
+      const text = Buffer.concat(chunks).toString('utf8');
+      if (!text) return resolve({});
+      let parsed;
+      try { parsed = JSON.parse(text); } catch { return reject(new AppError(400, 'BAD_JSON', 'Body must be valid JSON')); }
+      if (parsed === null || typeof parsed !== 'object') return reject(new AppError(400, 'BAD_JSON', 'Body must be a JSON object'));
+      resolve(parsed);
     });
   });
 }
 
-function sendJson(res, status, body) {
-  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
+function sendJson(res, status, body, cookies = []) {
+  if (cookies.length) res.setHeader('set-cookie', cookies);
+  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
 }
 
@@ -70,7 +87,7 @@ async function serveStatic(req, res, url, publicDir) {
   try {
     if (!(await stat(file)).isFile()) return false;
     const body = await readFile(file);
-    res.writeHead(200, { 'content-type': type, 'content-length': body.length, 'cache-control': 'no-cache', 'x-content-type-options': 'nosniff' });
+    res.writeHead(200, { 'content-type': type, 'content-length': body.length, 'cache-control': 'no-cache' });
     res.end(req.method === 'HEAD' ? undefined : body);
     return true;
   } catch {
@@ -78,9 +95,33 @@ async function serveStatic(req, res, url, publicDir) {
   }
 }
 
-export function createApp(ctx, { publicDir = PUBLIC_DIR } = {}) {
+/** One JSON line per request: id, method, path (no query string), status, duration, caller. */
+export const defaultLogger = (entry) => process.stdout.write(JSON.stringify(entry) + '\n');
+
+/**
+ * opts: publicDir; authRequired (default: env AUTH_REQUIRED === '1'); logger(entry) (default: silent, the CLI passes defaultLogger);
+ * fetch / resolve (webhook delivery, injectable); backgroundJobs (default true: unref'd interval for webhook retries and audit sealing);
+ * plus any key of src/modules/auth/config.js (rateLimit, loginRateLimit, maxBodyBytes, trustProxy, webhook, lockThreshold, ...).
+ */
+export function createApp(ctx, { publicDir = PUBLIC_DIR, logger = null, backgroundJobs = true, ...secOpts } = {}) {
+  const c = configure(ctx, secOpts);
+  const limiter = new RateLimiter(c.rateLimit);
+  const loginLimiter = new RateLimiter(c.loginRateLimit);
+  if (c.required) ensureFirstRun(ctx, { log: logger ? (m) => logger({ level: 'info', msg: m }) : console.log, env: c.env });
   const routes = ctx.registry.routes;
-  return http.createServer(async (req, res) => {
+  const log = logger ?? (() => {});
+
+  const server = http.createServer(async (req, res) => {
+    const started = Date.now();
+    const requestId = newRequestId(req.headers['x-request-id']);
+    const h = makeHttp(req, ctx, { requestId });
+    let who = null, status = 0;
+    res.setHeader('x-request-id', requestId);
+    for (const [k, v] of Object.entries(securityHeaders({ secure: isSecureRequest(req, c) }))) res.setHeader(k, v);
+    res.on('finish', () => {
+      status = res.statusCode;
+      log({ ts: new Date(started).toISOString(), requestId, method: req.method, path: (req.url ?? '').split('?')[0].slice(0, 200), status, ms: Date.now() - started, ip: h.ip, user: who, via: h.via });
+    });
     try {
       const url = new URL(req.url, 'http://localhost');
       for (const r of routes) {
@@ -88,20 +129,61 @@ export function createApp(ctx, { publicDir = PUBLIC_DIR } = {}) {
         const m = r.re.exec(url.pathname);
         if (!m) continue;
         const params = Object.fromEntries(r.names.map((n, i) => [n, decodeURIComponent(m[i + 1])]));
-        const body = req.method === 'GET' ? {} : await readBody(req);
-        // PoC identification only: a header names the user. Real auth (sessions + MFA) comes later.
-        const user = r.isPublic ? null : loadUser(ctx, Number(req.headers['x-user-id']));
-        const result = r.handler(ctx, user, { params, query: Object.fromEntries(url.searchParams), body });
-        return sendJson(res, req.method === 'POST' ? 201 : 200, result);
+
+        // rate limit: per API key if one is presented, else per client IP (healthz is exempt for platform probes)
+        if (url.pathname !== '/healthz') {
+          const presented = req.headers['x-api-key'] ?? /^Bearer\s+(acck_\S+)$/i.exec(String(req.headers.authorization ?? ''))?.[1];
+          const rl = limiter.take(presented ? `key:${sha256Hex(String(presented)).slice(0, 16)}` : `ip:${h.ip}`, ctx.now());
+          for (const [k, v] of Object.entries(rateHeaders(rl))) res.setHeader(k, v);
+          if (!rl.allowed) throw new AppError(429, 'RATE_LIMITED', 'Too many requests; slow down', { retryAfter: rl.retryAfterSec });
+        }
+        if (r.isPublic && req.method !== 'GET') {
+          checkOrigin(req, ctx);
+          if (r.path.startsWith('/api/auth/')) {
+            const ll = loginLimiter.take(`login:${h.ip}`, ctx.now());
+            if (!ll.allowed) throw new AppError(429, 'RATE_LIMITED', 'Too many sign-in attempts; wait a moment', { retryAfter: ll.retryAfterSec });
+          }
+        }
+
+        let user = null;
+        if (!r.isPublic) {
+          const a = authenticate(ctx, req, h, r);
+          user = a.user; h.via = a.via; h.session = a.session; h.apiKey = a.apiKey ?? null;
+          who = user.id;
+        }
+        const body = req.method === 'GET' ? {} : await readBody(req, c.maxBodyBytes);
+        const result = await r.handler(ctx, user, { params, query: Object.fromEntries(url.searchParams), body, http: h });
+        if (req.method !== 'GET') { try { sealAudit(ctx); } catch (e) { log({ level: 'error', requestId, msg: `audit seal failed: ${e.message}` }); } }
+        return sendJson(res, r.meta.status ?? (req.method === 'POST' ? 201 : 200), result, h.cookies);
       }
       if (await serveStatic(req, res, url, publicDir)) return;
       throw new AppError(404, 'NOT_FOUND', 'No such route');
     } catch (e) {
-      if (e instanceof AppError) return sendJson(res, e.status, { error: { code: e.code, message: e.message, ...(e.extra ?? {}) } });
-      console.error(e);
-      sendJson(res, 500, { error: { code: 'INTERNAL', message: 'Unexpected error' } });
+      if (e instanceof AppError) {
+        if (e.extra?.retryAfter) res.setHeader('retry-after', String(e.extra.retryAfter));
+        if (e.status === 413) { res.setHeader('connection', 'close'); res.on('finish', () => req.socket.destroy()); }
+        return sendJson(res, e.status, { error: { code: e.code, message: e.message, ...(e.extra ?? {}), requestId } }, h.cookies);
+      }
+      // Never leak internals: the client gets a request id, the log gets the stack.
+      log({ level: 'error', requestId, msg: String(e?.stack ?? e) });
+      if (!logger) console.error(e);
+      sendJson(res, 500, { error: { code: 'INTERNAL', message: 'Unexpected error', requestId } });
     }
   });
+
+  if (backgroundJobs) {
+    let timer;
+    const tick = async () => {
+      try {
+        sealAudit(ctx);
+        await processDeliveries(ctx, { fetchImpl: c.fetch ?? globalThis.fetch, resolve: c.resolve });
+      } catch (e) { log({ level: 'error', msg: `background job failed: ${e.message}` }); }
+    };
+    server.on('listening', () => { timer = setInterval(tick, c.webhook.intervalMs); timer.unref(); });
+    server.on('close', () => clearInterval(timer));
+    server.runBackgroundJobs = tick; // tests and operators can trigger one pass
+  }
+  return server;
 }
 
 /** Open the database (running migrations), load the modules, sync built-in roles, run pending seeds. */
@@ -111,7 +193,7 @@ export function createSeededContext(path = ':memory:', registry = defaultRegistr
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const port = Number(process.env.PORT ?? 3000);
-  createApp(createSeededContext(process.env.DB_PATH ?? ':memory:')).listen(port, () => {
-    console.log(`Accounting PoC running at http://localhost:${port}`);
+  createApp(createSeededContext(process.env.DB_PATH ?? ':memory:'), { logger: process.env.REQUEST_LOG === '0' ? null : defaultLogger }).listen(port, () => {
+    console.log(`Accounting PoC running at http://localhost:${port} (${process.env.AUTH_REQUIRED === '1' ? 'sign-in REQUIRED' : 'demo mode: x-user-id identity, demo credentials seeded'})`);
   });
 }
