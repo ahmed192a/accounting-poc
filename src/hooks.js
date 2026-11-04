@@ -11,8 +11,12 @@
 //   invoice.paid     { id, total, entryId, userId }
 //   bill.created     { bill: {id, supplier, amount, category}, status, userId }
 //   bill.approved    { bill: {id, supplier, amount, category}, entryId, userId, auto }
+//   approvals.requested { requestId, docType, docId, amount, userId }   approvals.completed { requestId, docType, docId, userId }
+//   approvals.rejected  { requestId, docType, docId, reason, userId }   purchases.paid { paymentId, supplierId, amount, entryId, userId }
+//   assist.accepted     { itemId, billId, edited, userId }               assist.undone { itemId, billId, userId }
 export const EVENTS = ['entry.posted', 'sale.created', 'invoice.created', 'invoice.paid', 'bill.created', 'bill.approved'];
 
 export function emit(ctx, event, payload) {
   for (const h of ctx.registry?.hooks?.[event] ?? []) h.fn(ctx, payload);
 }
+EVENTS.push('approvals.requested', 'approvals.completed', 'approvals.rejected', 'purchases.paid', 'assist.accepted', 'assist.undone');
