@@ -163,3 +163,13 @@ test('inventory http: routes enforce permissions and the receive -> sale -> valu
     assert.equal((await call('GET', '/api/inventory/barcode/zzz', 3)).status, 404);
   } finally { server.close(); }
 });
+
+test('inventory: overview bundles the UI data and leaves out valuation for roles without costs', () => {
+  const { ctx, as } = setup();
+  receive(ctx, as('owner'), 'TEA-250', 5, 1000);
+  const c = inv.overview(ctx, as('clerk')), m = inv.overview(ctx, as('manager'));
+  assert.equal(c.valuation, null);
+  assert.equal(m.valuation.reconciled, true);
+  assert.equal(c.stock.items.length, 1);
+  expectError(() => inv.overview(ctx, as('admin')), 'FORBIDDEN');
+});

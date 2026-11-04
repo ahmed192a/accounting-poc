@@ -647,3 +647,12 @@ export function widgets(ctx, user) {
   if (canCosts(user)) w.value = rows.reduce((s, r) => s + (r.value ?? 0), 0);
   return { inventory: w };
 }
+
+/** Everything the UI needs in one round trip (valuation only for holders of inventory.costs). */
+export function overview(ctx, user) {
+  requirePerm(user, 'inventory.view');
+  return {
+    stock: listStock(ctx, user), items: listItemSettings(ctx, user), units: listUnits(ctx, user), counts: listCounts(ctx, user),
+    warnings: warnings(ctx, user), settings: getSettings(ctx, user), valuation: canCosts(user) ? valuation(ctx, user) : null,
+  };
+}

@@ -25,6 +25,7 @@ export default {
   exportTables: ['inventory_warehouses', 'inventory_units', 'inventory_item_settings', 'inventory_movements', 'inventory_counts', 'inventory_count_lines'],
   hooks: s.hooks,
   routes: [
+    { method: 'GET', path: '/api/inventory/overview', handler: (c, u) => s.overview(c, u), meta: { summary: 'Stock, items, units, counts, warnings, settings and valuation in one response (for the UI)', permission: 'inventory.view' } },
     { method: 'GET', path: '/api/inventory/stock', handler: (c, u, r) => s.listStock(c, u, r.query), meta: { summary: 'Stock on hand per item and warehouse (costs only with inventory.costs)', permission: 'inventory.view' } },
     { method: 'GET', path: '/api/inventory/stock/:sku', handler: (c, u, r) => s.stockDetail(c, u, r.params.sku), meta: { summary: 'One stock item with its recent movements', permission: 'inventory.view' } },
     { method: 'GET', path: '/api/inventory/movements', handler: (c, u, r) => s.listMovements(c, u, r.query), meta: { summary: 'Stock movements (append-only), filter by sku, kind, warehouse', permission: 'inventory.view' } },

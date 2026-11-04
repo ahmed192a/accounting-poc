@@ -19,7 +19,7 @@ export default function register(App) {
     invTrack: 'Track stock', invUnit: 'Unit', invReorderLevel: 'Reorder level', invReorderQty: 'Reorder qty', invSave: 'Save', invSaved: 'Saved.',
     invAllowNeg: 'Allow selling below zero stock', invNewWh: 'New warehouse (code and name)', invAddWh: 'Add warehouse',
     invTotal: 'Total value', invGl: 'Account 1300 balance', invDiff: 'Difference', invMatches: 'Matches the books', invMismatch: 'Does not match the books',
-    invOtherPosted: 'posted to 1300 outside inventory', invUnknown: 'unknown', invPickItem: 'Choose an item',
+    invOtherPosted: 'posted to 1300 outside inventory', invUnknown: 'unknown', invPickItem: 'Choose an item', invChg: '+ / -', invLvl: 'Level', invRq: 'Qty',
   });
   App.i18n.add('ar', {
     invPage: 'المخزون', invStock: 'الرصيد المتاح', invLow: 'مخزون منخفض', invReceive: 'استلام بضاعة', invAdjust: 'تسوية أو تحويل مخزون',
@@ -37,7 +37,7 @@ export default function register(App) {
     invTrack: 'تتبع المخزون', invUnit: 'الوحدة', invReorderLevel: 'حد إعادة الطلب', invReorderQty: 'كمية إعادة الطلب', invSave: 'حفظ', invSaved: 'تم الحفظ.',
     invAllowNeg: 'السماح بالبيع تحت الصفر', invNewWh: 'مخزن جديد (الكود والاسم)', invAddWh: 'إضافة مخزن',
     invTotal: 'إجمالي القيمة', invGl: 'رصيد حساب 1300', invDiff: 'الفرق', invMatches: 'مطابق للدفاتر', invMismatch: 'غير مطابق للدفاتر',
-    invOtherPosted: 'مسجل على 1300 خارج المخزون', invUnknown: 'غير معروف', invPickItem: 'اختر صنفاً',
+    invOtherPosted: 'مسجل على 1300 خارج المخزون', invUnknown: 'غير معروف', invPickItem: 'اختر صنفاً', invChg: '+ / -', invLvl: 'الحد', invRq: 'الكمية',
   });
 
   // Module state (reloaded on every home load)
@@ -54,21 +54,22 @@ export default function register(App) {
     r.low && !r.negative && !r.outOfStock ? `<span class="chip warn">${t('invChipLow')}</span>` : '',
   ].join(' ');
 
-  async function safe(fn) { try { return await fn(); } catch (e) { console.error('inventory load', e); return null; } }
+  let loadingFor = null; // user id the current load belongs to; a stale load (user switched meanwhile) must not call the API
+  async function safe(fn) { if (loadingFor !== state.userId) return null; try { return await fn(); } catch (e) { console.error('inventory load', e); return null; } }
   const loadSheet = (id) => safe(async () => { sheet = await api('GET', `/api/inventory/counts/${id}`); });
 
   App.onLoad(async (home) => {
     stock = items = warehouses = units = counts = warnings = valuation = settings = null;
     items = []; warehouses = []; units = []; counts = [];
-    if (!has('inventory.view')) return;
-    stock = await safe(() => api('GET', `/api/inventory/stock${whFilter ? `?warehouse=${encodeURIComponent(whFilter)}` : ''}`));
+    loadingFor = home.user.id;
+    const can = (a) => home.permissions.includes(a);
+    if (!can('inventory.view')) return;
+    // One request for everything keeps the dashboard responsive (the warehouse filter refetches the stock list only).
+    const o = await safe(() => api('GET', '/api/inventory/overview'));
+    stock = o?.stock ?? null; items = o?.items; units = o?.units; counts = o?.counts; warnings = o?.warnings ?? null; settings = o?.settings ?? null; valuation = o?.valuation ?? null;
+    if (o && whFilter) stock = await safe(() => api('GET', `/api/inventory/stock?warehouse=${encodeURIComponent(whFilter)}`));
     warehouses = stock?.warehouses ?? [];
-    [items, units, counts, warnings, settings] = await Promise.all([
-      safe(() => api('GET', '/api/inventory/items')), safe(() => api('GET', '/api/inventory/units')),
-      safe(() => api('GET', '/api/inventory/counts')), safe(() => api('GET', '/api/inventory/warnings')),
-      safe(() => api('GET', '/api/inventory/settings')),
-    ]).then((r) => r.map((x, i) => x ?? (i === 4 ? null : i === 3 ? null : [])));
-    if (has('inventory.costs')) valuation = await safe(() => api('GET', '/api/inventory/valuation'));
+    items = items ?? []; units = units ?? []; counts = counts ?? [];
     if (sheet) await loadSheet(sheet.id);
   });
   App.onUserChange(() => { sheet = null; found = null; whFilter = ''; });
@@ -93,9 +94,9 @@ export default function register(App) {
     <div class="row"><select id="inv-wh" data-act="inv-filter"><option value="">${t('invAllWh')}</option>${whOptions(whFilter)}</select>
     <input type="text" id="inv-barcode" placeholder="${t('invBarcode')}"><button class="small" data-act="inv-find">${t('invFind')}</button></div>
     ${found ? `<div class="note good">${t('invFound')}: ${name(found)} · ${esc(found.sku)} · ${t('invQty')} ${found.qty}</div>` : ''}
-    ${rows.length ? `<table><tr><th>${t('invItem')}</th><th class="num">${t('invQty')}</th>${costs ? `<th class="num">${t('invAvg')}</th><th class="num">${t('invValue')}</th>` : ''}<th></th></tr>${rows.map((r) => `
-    <tr><td>${name(r)}<div class="sub">${esc(r.sku)}${r.barcode ? ` · ${esc(r.barcode)}` : ''}</div></td><td class="num">${r.qty} ${unitName(r.unit)}</td>
-    ${costs ? `<td class="num">${r.avgCost == null ? `<span class="chip mute">${t('invUnknown')}</span>` : money(r.avgCost)}</td><td class="num">${money(r.value)}</td>` : ''}<td class="num">${chips(r)}</td></tr>`).join('')}</table>`
+    ${rows.length ? `<table><tr><th>${t('invItem')}</th><th class="num">${t('invQty')}</th>${costs ? `<th class="num">${t('invAvg')}</th><th class="num">${t('invValue')}</th>` : ''}</tr>${rows.map((r) => `
+    <tr><td>${name(r)}<div class="sub">${esc(r.sku)}${r.barcode ? ` · ${esc(r.barcode)}` : ''}</div>${chips(r)}</td><td class="num">${r.qty} ${unitName(r.unit)}</td>
+    ${costs ? `<td class="num">${r.avgCost == null ? `<span class="chip mute">${t('invUnknown')}</span>` : money(r.avgCost)}</td><td class="num">${money(r.value)}</td>` : ''}</tr>`).join('')}</table>`
       : `<div class="empty">${t('invNoStock')}</div>`}</div>`;
   } });
   App.onChange('inv-filter', (el) => { whFilter = el.value; App.reload(); });
@@ -110,7 +111,7 @@ export default function register(App) {
   App.addCard({ id: 'inventory.receive', area: 'main', order: 117, permission: 'inventory.receive', ...page, render: () => `<div class="card"><h2>${t('invReceive')}</h2>
     <div class="row"><input type="text" id="inv-supplier" placeholder="${t('invSupplier')}"><select id="inv-r-wh">${whOptions(warehouses.find((w) => w.is_default)?.id)}</select></div>
     <div class="row"><select id="inv-r-sku">${itemOptions(items)}</select><input class="qty" type="number" min="1" step="1" id="inv-r-qty" placeholder="${t('invQty')}" title="${t('invQty')}">
-    <input class="qty" type="number" min="0" step="0.01" id="inv-r-cost" placeholder="${t('invUnitCost')}" title="${t('invUnitCost')}"></div>
+    <input class="qty" type="number" min="0" step="0.01" id="inv-r-cost" placeholder="${t('invUnitCost').split(' ')[0]}" title="${t('invUnitCost')}"></div>
     <div class="row"><button class="primary" data-act="inv-receive">${t('invDoReceive')}</button></div></div>` });
   App.on('inv-receive', () => run(() => api('POST', '/api/inventory/receive', {
     supplier: val('inv-supplier'), sku: val('inv-r-sku'), qty: Number(val('inv-r-qty')), unitCost: App.toPiastres(val('inv-r-cost')), warehouseId: Number(val('inv-r-wh')),
@@ -121,7 +122,7 @@ export default function register(App) {
     const tracked = (stock?.items ?? []);
     return `<div class="card"><h2>${t('invAdjust')}</h2>
     <div class="row"><select id="inv-a-sku">${itemOptions(tracked)}</select><select id="inv-a-wh">${whOptions(warehouses.find((w) => w.is_default)?.id)}</select>
-    <input class="qty" type="number" step="1" id="inv-a-qty" placeholder="${t('invChange')}" title="${t('invChange')}"></div>
+    <input class="qty" type="number" step="1" id="inv-a-qty" placeholder="${t('invChg')}" title="${t('invChange')}"></div>
     <div class="row"><input type="text" id="inv-a-reason" placeholder="${t('invReason')}"><button class="primary" data-act="inv-adjust">${t('invDoAdjust')}</button></div>
     <h2 style="margin-top:14px">${t('invTransfer')}</h2>
     <div class="row"><select id="inv-t-sku">${itemOptions(tracked)}</select><select id="inv-t-from" title="${t('invFrom')}">${whOptions(warehouses.find((w) => w.is_default)?.id)}</select>
@@ -169,7 +170,7 @@ export default function register(App) {
   App.addCard({ id: 'inventory.setup', area: 'main', order: 121, permission: 'inventory.manage', ...page, render: () => `<div class="card"><h2>${t('invSetup')}</h2>
     <div class="row"><select id="inv-s-sku" data-act="inv-s-pick">${itemOptions(items ?? [])}</select><label><input type="checkbox" id="inv-s-track" checked> ${t('invTrack')}</label></div>
     <div class="row"><input type="text" id="inv-s-barcode" placeholder="${t('invBarcode')}"><select id="inv-s-unit">${(units ?? []).map((u) => `<option value="${esc(u.code)}">${unitName(u.code)}</option>`).join('')}</select></div>
-    <div class="row"><input class="qty" type="number" min="0" step="1" id="inv-s-level" placeholder="${t('invReorderLevel')}" title="${t('invReorderLevel')}"><input class="qty" type="number" min="0" step="1" id="inv-s-rqty" placeholder="${t('invReorderQty')}" title="${t('invReorderQty')}">
+    <div class="row"><input class="qty" type="number" min="0" step="1" id="inv-s-level" placeholder="${t('invLvl')}" title="${t('invReorderLevel')}"><input class="qty" type="number" min="0" step="1" id="inv-s-rqty" placeholder="${t('invRq')}" title="${t('invReorderQty')}">
     <button class="primary" data-act="inv-s-save">${t('invSave')}</button></div>
     <div class="row"><label><input type="checkbox" id="inv-s-neg" data-act="inv-s-neg" ${settings?.allowNegative ? 'checked' : ''}> ${t('invAllowNeg')}</label></div>
     <div class="row"><input type="text" id="inv-w-code" placeholder="${t('invNewWh')}" style="max-width:120px"><input type="text" id="inv-w-name" placeholder="${t('invWarehouse')}"><button class="small" data-act="inv-w-add">${t('invAddWh')}</button></div></div>` });
