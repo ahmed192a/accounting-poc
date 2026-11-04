@@ -84,7 +84,7 @@ async function submitBatch(ctx, userId, client, signer, cfg, docs, out) {
 }
 
 function applyPoll(ctx, userId, doc, r, cfg) {
-  tx(ctx.db, () => {
+  return tx(ctx.db, () => {
     const cur = getDocumentRow(ctx.db, doc.id);
     if (cur.status !== 'submitted') return 'skip';
     const st = String(r.status).toLowerCase();
