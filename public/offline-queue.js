@@ -82,14 +82,14 @@ export function createQueue({ storage, fetch: fetchImpl, now = () => Date.now(),
   const mine = (all) => all.filter((i) => i.identity === getIdentity());
   const find = async (id) => (await storage.getAll()).find((i) => i.id === id);
 
-  async function enqueue({ method = 'POST', path, body = {}, label = '' }) {
+  async function enqueue({ method = 'POST', path, body = {}, label = '', key }) {
     const kind = queueKind(method, path);
     if (!kind) throw new QueueError('NOT_QUEUEABLE', `${method} ${path} cannot be saved offline`);
     let clean;
     try { clean = JSON.parse(JSON.stringify(body ?? {})); } catch { throw new QueueError('BAD_BODY', 'Body must be JSON'); }
     if (clean === null || typeof clean !== 'object' || Array.isArray(clean)) throw new QueueError('BAD_BODY', 'Body must be a JSON object');
     if ((await storage.getAll()).length >= maxItems) throw new QueueError('QUEUE_FULL', `At most ${maxItems} offline changes can wait; connect and sync first`);
-    const item = { key: uuid(), identity: getIdentity(), method: String(method).toUpperCase(), path, body: clean, label: label || kind, kind, status: 'pending', attempts: 0, createdAt: now(), error: null, lastAttemptAt: null };
+    const item = { key: key || uuid(), identity: getIdentity(), method: String(method).toUpperCase(), path, body: clean, label: label || kind, kind, status: 'pending', attempts: 0, createdAt: now(), error: null, lastAttemptAt: null };
     item.id = await storage.add(item);
     changed();
     return item;
