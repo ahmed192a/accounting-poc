@@ -35,4 +35,9 @@ Still open:
 - AI only suggests; a person approves and every action can be undone.
 - Anything unverified (tax formats, rates, regulations) is labelled MOCK or UNVERIFIED in code and docs.
 
+## After M5
+
+The review, the innovation bets and the design for milestones M6 to M9 are in
+[docs/DESIGN_PLAN.md](docs/DESIGN_PLAN.md). It is a proposal until the owner confirms the direction.
+
 See [docs/PLAN.md](docs/PLAN.md) for the per-milestone scope and acceptance notes, and [CHANGELOG.md](CHANGELOG.md) for details.

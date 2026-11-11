@@ -49,7 +49,7 @@ Demo video (walkthrough of the six roles): [docs/img/demo.mp4](docs/img/demo.mp4
 
 ## Plan and releases
 
-[ROADMAP.md](ROADMAP.md) lists the milestones, [docs/PLAN.md](docs/PLAN.md) the scope of each, and
+[ROADMAP.md](ROADMAP.md) lists the milestones, [docs/DESIGN_PLAN.md](docs/DESIGN_PLAN.md) is the design plan for what comes next, [docs/PLAN.md](docs/PLAN.md) the scope of each, and
 [docs/RUN.md](docs/RUN.md) explains step by step how to run and try it. Each milestone has a
 [GitHub release](https://github.com/ahmed192a/accounting-poc/releases).
 
