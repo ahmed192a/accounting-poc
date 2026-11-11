@@ -42,7 +42,7 @@ idea to a system that covers most of the requirements document.
 | Approval rule | Should | BUILT (exceeds) | No scheduler, so escalation only runs when called |
 | Full export, CSV import with mapping | Should | PARTIAL | Export is full; import covers bank lines and chart of accounts only. No migration from Excel or another tool |
 | REST API and webhooks, published limits, no read fees | Should | BUILT | No versioned path (`/api/v1`), no usage meters, no agent (MCP) surface |
-| Four role home views, fine-grained permissions, SoD, free time-boxed accountant seat | Must | BUILT | No multi-client console for an external accountant |
+| Four role home views, fine-grained permissions, SoD, free time-boxed accountant seat | Must | PARTIAL | Roles, limits and SoD are built. External access cannot be time-boxed (only sessions, invites and API keys expire), and there is no multi-client console for an accountant |
 | MFA, isolation, backups with tested restore, encryption at rest | NFR | PARTIAL | Backups exist per tenant; no restore drill, no encryption at rest, no per-tenant keys |
 | Quick sale under 1 s on a mid-range Android; list under 2 s at 10,000 records | NFR | MISSING | Never measured on a phone |
 | Privacy law review, data residency decision | NFR | MISSING | Needs counsel |
@@ -278,7 +278,7 @@ journal lines; an agent key can never post beyond its limits; replay with the sa
 - **Certificate.** A one-page, bilingual PDF or HTML: "Books of *Company*, period *P*, totals *T*, sealed with *H*,
   verified unchanged on *date*", with a QR to a verification endpoint that recomputes the chain.
 - **Audit room.** A time-boxed, read-only link for an auditor, lender or buyer: reports, drill-down, the audit log and
-  the verification result. Uses the existing time-boxed access and the auditor role.
+  the verification result. Builds on the auditor role; expiring access is new (`share_links`, 5.6).
 - **Key separation.** The chain key moves out of the tenant database (5.7).
 
 **Why it is different.** It turns an internal safeguard into the product's signature, and it is the base for 4.10.
