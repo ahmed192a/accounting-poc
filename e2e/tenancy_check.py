@@ -1,5 +1,7 @@
 import subprocess, time, sys, os, shutil, tempfile, urllib.request
 from playwright.sync_api import sync_playwright
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from helpers import ready, go
 
 # Usage: python3 e2e/tenancy_check.py
 # Starts its own server (AUTH_REQUIRED=1, TENANTS_DIR in a temp folder) and checks multi-tenancy through the real UI and API:
@@ -41,7 +43,7 @@ try:
             page.fill("#auth-email", email); page.fill("#auth-pw", pw)
             page.click("[data-act=auth-login]")
             page.wait_for_selector("#auth-email", state="detached", timeout=8000)
-            page.wait_for_selector("nav a", timeout=10000); page.wait_for_timeout(800)
+            page.wait_for_selector("nav a", timeout=10000); ready(page)
 
         def api_session(email, pw):
             """Independent API client with its own cookies, as a second browser would be."""

@@ -1,5 +1,7 @@
 import subprocess, time, sys, os, json, urllib.request
 from playwright.sync_api import sync_playwright
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from helpers import ready, go
 
 # Usage: python3 e2e/offline_check.py     Env: POC_PORT (default 3201), POC_SHOTS (default /tmp/offline-shots)
 # Goes offline, sells, comes back, checks the sale reached the server exactly once; then a conflict (item deactivated while offline).
@@ -66,7 +68,7 @@ try:
         # ---- back online: syncs exactly once ----
         ctx.set_offline(False)
         page.wait_for_function("!document.querySelector('#offline-chip')", timeout=15000)
-        time.sleep(3)  # a double send would show up here
+        ready(page)  # the queue has drained and nothing is in flight; a double send would have happened before this
         check(len(api("GET", "/api/sales", 3)) == sales_before + 1, "after reconnect the sale reached the server exactly once")
         check(page.locator("#offline-list").count() == 0, "pending list is empty after sync")
         page.screenshot(path=f"{OUT}/3_synced.png")
@@ -99,7 +101,7 @@ try:
         page.goto(BASE + "/#/offline"); page.wait_for_selector("#offline-list")
         page.click("[data-act=offline-discard]"); page.click(".dialog-actions button.danger, .dialog-actions button.primary")
         page.wait_for_function("!document.querySelector('#offline-list')", timeout=5000)
-        ctx.set_offline(False); time.sleep(2)
+        ctx.set_offline(False); ready(page)
         check(len(api("GET", "/api/sales", 3)) == n_mid + 1, "discarded change never reaches the server")
 
         # ---- Arabic / RTL renders the page ----

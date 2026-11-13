@@ -1,5 +1,7 @@
 import subprocess, time, sys, os, urllib.request
 from playwright.sync_api import sync_playwright
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from helpers import ready, go
 
 # Usage: python3 e2e/ui_check.py
 # Env: POC_DIR (repo to test, default: the repo this script lives in), POC_PORT (default 3100),
@@ -30,10 +32,7 @@ try:
         def sw(uid):
             """Switch demo user and let the UI settle (data reload is asynchronous)."""
             page.select_option("#user", uid)
-            page.wait_for_timeout(300)
-            try: page.wait_for_load_state("networkidle", timeout=5000)
-            except Exception: pass
-            page.wait_for_timeout(500)
+            ready(page)
 
         def nav_hrefs():
             hs = page.eval_on_selector_all("nav a", "els => els.map(e => e.getAttribute('href'))")
@@ -47,10 +46,10 @@ try:
                     return
                 hrefs = nav_hrefs()
                 for h in hrefs:
-                    page.evaluate("h => { location.hash = h }", h); page.wait_for_timeout(250)
+                    go(page, h)
                     if page.locator(sel).first.is_visible():
                         return
-                page.wait_for_timeout(200)
+                ready(page)
             page.wait_for_selector(sel, timeout=2000)
 
 
@@ -60,7 +59,7 @@ try:
             hrefs = nav_hrefs()
             out = []
             for h in hrefs:
-                page.evaluate("h => { location.hash = h }", h); page.wait_for_timeout(350)
+                go(page, h)
                 out.append(page.inner_text("main"))
             return "\n".join(out)
 
@@ -69,6 +68,7 @@ try:
         page.on("response", lambda r: print("HTTP403", r.request.headers.get("x-user-id"), r.url) if r.status == 403 else None)
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto(f"http://127.0.0.1:{PORT}/")
+        ready(page)
         page.wait_for_selector(".role-line")
 
         # clerk (default): sees sales tools, never sees cash or reports
@@ -85,7 +85,9 @@ try:
         # clerk sells while offline
         sw("3"); ws("text=Complete sale")
         page.fill("input[data-sku=TEA-250]", "2"); page.fill("input[data-sku=SPICE-LOOSE]", "0")
-        page.wait_for_timeout(400); total = page.inner_text("#saleTotal")
+        try: page.wait_for_selector("#saleTotal:has-text('102.60')", timeout=3000)  # the input handler updates it synchronously
+        except Exception: pass
+        total = page.inner_text("#saleTotal")
         check("102.60" in total, f"live total includes 14% VAT (got {total})")
         page.click("text=Complete sale"); ws(".note.warn")
         check("Queued" in page.inner_text(".note"), "offline sale completes with receipt queued")
@@ -93,7 +95,7 @@ try:
 
         # time passes: 5 x 6h = 30h, deadline missed
         for _ in range(5):
-            page.click("text=Advance clock"); page.wait_for_timeout(150)
+            page.click("text=Advance clock"); ready(page)
         ws(".chip.bad:has-text('Overdue')")
         check("Overdue" in alltext(), "queued receipt flagged overdue after the 24h window")
         page.screenshot(path=f"{OUT}/3_overdue.png")

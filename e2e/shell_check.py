@@ -10,6 +10,8 @@ exercised no matter which feature modules are merged. Nothing is added to the re
 """
 import os, shutil, subprocess, sys, tempfile, time, urllib.request
 from playwright.sync_api import sync_playwright
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from helpers import ready, go, stable
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.environ.get("POC_DIR") or os.path.dirname(HERE)
@@ -74,6 +76,7 @@ try:
         def ok_error(msgs): return [m for m in msgs if "fx.broken" not in m and "boom" not in m]
 
         page.goto(BASE + "/")
+        ready(page)
         page.wait_for_selector(".role-line")
 
         # ---- navigation model ----
@@ -98,21 +101,21 @@ try:
         check(route(page) == "#/fxtools", "browser forward works")
         page.goto(BASE + "/#/fxfull"); page.wait_for_selector("#fx-full")
         check(page.locator("h1").inner_text() == "Fixture Full Page", "deep link to a full page renders it")
-        page.evaluate("location.hash = '#/banking-nope'"); page.wait_for_selector("text=Page not found")
+        go(page, '#/banking-nope'); page.wait_for_selector("text=Page not found")
         check(True, "unknown route shows a not-found state")
-        page.evaluate("location.hash = '#/fxbank'"); page.wait_for_selector("text=This page is not available")
+        go(page, '#/fxbank'); page.wait_for_selector("text=This page is not available")
         check(True, "a page the role cannot see shows an access message, not content")
-        page.evaluate("location.hash = '#/'"); page.wait_for_selector(".role-line")
+        go(page, '#/'); page.wait_for_selector(".role-line")
 
         # owner sees banking page with a sticky-header table
-        page.select_option("#user", "1"); page.wait_for_selector("#nav a:has-text('Fixture Banking')")
+        page.select_option("#user", "1"); ready(page); page.wait_for_selector("#nav a:has-text('Fixture Banking')")
         page.click("#nav a:has-text('Fixture Banking')"); page.wait_for_selector("text=Fixture ledger table")
         check(page.locator(".table-wrap th").first.evaluate("e => getComputedStyle(e).position") == "sticky", "table headers are sticky")
         page.screenshot(path=f"{OUT}/s_banking_desktop.png")
 
         # ---- side nav collapse ----
         w0 = page.locator("#nav").bounding_box()["width"]
-        page.click("#navToggle"); page.wait_for_timeout(300)
+        page.click("#navToggle"); stable(page, "#nav")
         w1 = page.locator("#nav").bounding_box()["width"]
         check(w1 < w0 - 100, f"side nav collapses ({w0} -> {w1})")
         check(page.get_attribute("#navToggle", "aria-expanded") == "false", "nav toggle exposes aria-expanded")
@@ -129,12 +132,12 @@ try:
         page.click("#theme")  # now explicitly dark
         page.reload(); page.wait_for_selector(".page-head")
         check(theme(page) == "dark", "theme choice persists across reloads")
-        ctx2 = b.new_context(color_scheme="dark"); pg2 = ctx2.new_page(); pg2.goto(BASE + "/"); pg2.wait_for_selector(".role-line")
+        ctx2 = b.new_context(color_scheme="dark"); pg2 = ctx2.new_page(); pg2.goto(BASE + "/"); ready(pg2); pg2.wait_for_selector(".role-line")
         check(theme(pg2) == "dark", "prefers-color-scheme: dark is honoured by default"); ctx2.close()
         page.click("#theme")  # back to light for the remaining checks
 
         # ---- command palette ----
-        page.select_option("#user", "1"); page.wait_for_selector("#nav a:has-text('Fixture Banking')")  # reload reset the demo user
+        page.select_option("#user", "1"); ready(page); page.wait_for_selector("#nav a:has-text('Fixture Banking')")  # reload reset the demo user
         page.keyboard.press("Control+k")
         page.wait_for_selector("[role=dialog] input[role=combobox]")
         check(page.evaluate("document.activeElement.getAttribute('role')") == "combobox", "palette focuses its input")
@@ -148,7 +151,9 @@ try:
         check(page.locator("[role=dialog]").count() == 0, "palette closes after choosing")
         page.keyboard.press("Control+k"); page.keyboard.type("theme")
         page.wait_for_selector("[role=option]:has-text('Toggle light')")
-        t0 = theme(page); page.keyboard.press("Enter"); page.wait_for_timeout(200)
+        t0 = theme(page); page.keyboard.press("Enter")
+        try: page.wait_for_selector(f"html:not([data-theme='{t0}'])", state="attached", timeout=3000)
+        except Exception: pass  # the check below reports it
         check(theme(page) != t0, "palette action toggles the theme")
         page.keyboard.press("Control+k"); page.keyboard.press("Escape")
         check(page.locator("[role=dialog]").count() == 0, "Escape closes the palette")
@@ -158,7 +163,7 @@ try:
         check(route(page) in ("", "#/"), "g then 1 goes Home")
 
         # ---- dialogs ----
-        page.select_option("#user", "3"); page.wait_for_selector("#nav a:has-text('Fixture Tools')")
+        page.select_option("#user", "3"); ready(page); page.wait_for_selector("#nav a:has-text('Fixture Tools')")
         page.click("#nav a:has-text('Fixture Tools')"); page.wait_for_selector("[data-act=fx-confirm]")
         page.click("[data-act=fx-confirm]")
         page.wait_for_selector("[role=dialog][aria-modal=true]")
@@ -187,7 +192,7 @@ try:
         check(True, "App.prompt resolves null on cancel")
 
         # ---- toasts ----
-        page.evaluate("location.hash = '#/design'"); page.wait_for_selector("text=Color tokens")
+        go(page, '#/design'); page.wait_for_selector("text=Color tokens")
         page.click("[data-sh=demo-toast-err]")
         page.wait_for_selector("#toast.err .toast-item")
         check(page.get_attribute("#toast", "aria-live") == "polite", "toasts live in a polite live region")
@@ -201,12 +206,12 @@ try:
         check(page.evaluate("getComputedStyle(document.querySelector('main')).direction") == "rtl", "content direction is rtl")
         page.select_option("[data-sh-change=digits]", "arab") if page.locator("[data-sh-change=digits]").count() and page.locator("#userMenu").is_visible() else None
         page.click("#userMenuBtn"); page.select_option("[data-sh-change=digits]", "arab")
-        page.wait_for_timeout(200)
+        ready(page)
         page.click("#userMenuBtn") if page.locator("#userMenu").is_visible() else None
         page.screenshot(path=f"{OUT}/s_design_rtl.png", full_page=True)
         txt = page.inner_text("main")
         check(any(c in txt for c in "٠١٢٣٤٥٦٧٨٩"), "Arabic-Indic digits option changes numerals")
-        page.click("#userMenuBtn"); page.select_option("[data-sh-change=digits]", "latn"); page.wait_for_timeout(100)
+        page.click("#userMenuBtn"); page.select_option("[data-sh-change=digits]", "latn"); ready(page)
         check(not any(c in page.inner_text("main") for c in "٠١٢٣٤٥٦٧٨٩") or True, "Western digits option accepted")
         page.keyboard.press("Escape")
         page.reload(); page.wait_for_selector("html[dir=rtl]")
@@ -219,18 +224,18 @@ try:
         merrs = []
         m.on("console", lambda x: merrs.append(x.text) if x.type == "error" else None)
         m.on("pageerror", lambda e: merrs.append(str(e)))
-        m.goto(BASE + "/"); m.wait_for_selector(".role-line")
-        m.select_option("#user", "1"); m.wait_for_selector("#bottomnav a")
+        m.goto(BASE + "/"); ready(m); m.wait_for_selector(".role-line")
+        m.select_option("#user", "1"); ready(m); m.wait_for_selector("#bottomnav a")
         check(m.locator("#bottomnav").is_visible(), "phone shows a bottom navigation bar")
         check(m.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"), "no horizontal page overflow at 390px")
-        m.evaluate("location.hash = '#/fxbank'"); m.wait_for_selector("text=Fixture ledger table")
+        go(m, '#/fxbank'); m.wait_for_selector("text=Fixture ledger table")
         check(m.evaluate("getComputedStyle(document.querySelector('table.stack td')).display") == "flex", "tables stack into labelled rows on phones")
         check(m.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"), "no horizontal overflow on a table page")
         m.screenshot(path=f"{OUT}/s_banking_phone.png")
-        m.click("#navToggle"); m.wait_for_timeout(300)
+        m.click("#navToggle"); stable(m, "#nav")
         check(m.evaluate("document.body.classList.contains('nav-open')") and m.locator("#nav").bounding_box()["x"] >= -1, "menu button opens the nav drawer on phones")
         m.screenshot(path=f"{OUT}/s_drawer_phone.png")
-        m.keyboard.press("Escape"); m.wait_for_timeout(300)
+        m.keyboard.press("Escape"); stable(m, "#nav")
         m.goto(BASE + "/#/design"); m.wait_for_selector("text=Color tokens")
         check(m.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"), "design page fits a phone")
         m.screenshot(path=f"{OUT}/s_design_phone.png", full_page=True)
@@ -240,7 +245,8 @@ try:
         mf = page.request.get(BASE + "/manifest.json").json()
         check(mf.get("display") == "standalone" and any(i["sizes"] == "512x512" for i in mf["icons"]), "manifest is installable (standalone + 512 icon)")
         check(page.request.get(BASE + "/icons/icon-192.png").status == 200, "PNG icon is served")
-        page.wait_for_timeout(500)
+        try: page.evaluate("navigator.serviceWorker.ready.then(() => true)")
+        except Exception: pass
         sw = page.evaluate("navigator.serviceWorker.getRegistration().then(r => !!r)")
         check(sw is True, "service worker registers")
 
