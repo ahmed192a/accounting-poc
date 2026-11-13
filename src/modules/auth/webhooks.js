@@ -5,12 +5,15 @@ import { requirePerm } from '../../permissions.js';
 import { cfg } from './config.js';
 import { randomToken, hmacHex, encryptSecret, decryptSecret } from './crypto.js';
 import { assertSafeUrlSyntax, assertSafeUrl } from './ssrf.js';
+import { enqueue } from '../jobs/queue.js';
 
 // Outbound webhooks. Subscribed to the module hook events (src/hooks.js). A hook enqueues one delivery row per
 // subscribed webhook INSIDE the emitting transaction (a rolled-back sale delivers nothing). Delivery itself is
 // asynchronous: processDeliveries() runs on demand (POST /api/webhooks/deliveries/process) and on an unref'd interval.
 //
 // Signature: header  x-webhook-signature: t=<unix seconds>,v1=<hex HMAC-SHA256(secret, "<t>.<raw body>")>
+// Delivery is a job of the jobs kernel (src/modules/jobs, docs/jobs.md): kind 'webhooks.deliver', woken whenever a delivery row is added and
+// on a schedule. auth_webhook_deliveries is this feature's outbox (one row per endpoint, own retry state and delivery log).
 // Receivers should recompute it over the raw body and reject timestamps older than a few minutes.
 
 export const SIGNATURE_HEADER = 'x-webhook-signature';
@@ -93,10 +96,23 @@ export function enqueueEvent(ctx, event, data) {
     const now = ctx.now();
     const ins = ctx.db.prepare("INSERT INTO auth_webhook_deliveries (webhook_id, event, payload, status, next_attempt_at, created_at) VALUES (?,?,?,'pending',?,?)");
     for (const w of hooks) ins.run(w.id, event, JSON.stringify({ event, createdAt: new Date(now).toISOString(), data }), now, now);
+    wake(ctx);
     return hooks.length;
   } catch {
     return 0; // delivery plumbing must never break the business operation that emitted the event
   }
+}
+
+/** Ask the jobs kernel to deliver soon. Never throws (delivery plumbing must not break the caller). */
+export function wake(ctx) {
+  try { enqueue(ctx, 'webhooks.deliver', {}, { uniqueKey: 'webhooks.deliver' }); } catch { /* the schedule still picks the rows up */ }
+}
+
+/** Job handler: deliver what is due; if rows remain pending for later (backoff), ask to run again then. */
+export async function deliverJob(ctx) {
+  const res = await processDeliveries(ctx, { fetchImpl: cfg(ctx).fetch ?? globalThis.fetch, resolve: cfg(ctx).resolve });
+  const next = ctx.db.prepare("SELECT MIN(next_attempt_at) AS t FROM auth_webhook_deliveries WHERE status = 'pending'").get().t;
+  return next == null ? res : { ...res, rerunAt: Math.max(next, ctx.now() + 1000) };
 }
 
 export function sendTest(ctx, actor, id) {
@@ -106,6 +122,7 @@ export function sendTest(ctx, actor, id) {
   const now = ctx.now();
   const rid = Number(ctx.db.prepare("INSERT INTO auth_webhook_deliveries (webhook_id, event, payload, status, next_attempt_at, created_at) VALUES (?,?,?,'pending',?,?)")
     .run(id, 'webhook.test', JSON.stringify({ event: 'webhook.test', createdAt: new Date(now).toISOString(), data: { hello: 'from accounting' } }), now, now).lastInsertRowid);
+  wake(ctx);
   return { deliveryId: rid };
 }
 
@@ -115,6 +132,7 @@ export function retryDelivery(ctx, actor, id) {
   if (!d) throw new AppError(404, 'NOT_FOUND', 'Delivery not found');
   if (d.status === 'delivered') throw new AppError(409, 'ALREADY_DELIVERED', 'Already delivered');
   ctx.db.prepare("UPDATE auth_webhook_deliveries SET status = 'pending', next_attempt_at = ?, attempts = 0 WHERE id = ?").run(ctx.now(), id);
+  wake(ctx);
   audit(ctx, { userId: actor.id, action: 'webhook.delivery_requeued', type: 'webhook_delivery', id });
   return { id, status: 'pending' };
 }

@@ -10,7 +10,7 @@ import { RateLimiter, rateHeaders } from './modules/auth/ratelimit.js';
 import { securityHeaders, newRequestId, makeHttp, authenticate, checkOrigin, isSecureRequest } from './modules/auth/http.js';
 import { ensureFirstRun } from './modules/auth/service.js';
 import { sealAudit } from './modules/auth/auditchain.js';
-import { processDeliveries } from './modules/auth/webhooks.js';
+import { runDue } from './modules/jobs/queue.js';
 import { sha256Hex } from './modules/auth/crypto.js';
 import { withIdempotency } from './idempotency.js';
 import { createTenantManager } from './tenants.js';
@@ -102,7 +102,7 @@ export const defaultLogger = (entry) => process.stdout.write(JSON.stringify(entr
 
 /**
  * opts: publicDir; authRequired (default: env AUTH_REQUIRED === '1'); logger(entry) (default: silent, the CLI passes defaultLogger);
- * fetch / resolve (webhook delivery, injectable); backgroundJobs (default true: unref'd interval for webhook retries and audit sealing);
+ * fetch / resolve (webhook delivery, injectable); backgroundJobs (default true: unref'd interval: audit sealing and one jobs pass per company, see docs/jobs.md);
  * tenants (default null = single-tenant): true | { dir, maxOpen } | a tenant manager; enables one SQLite file per tenant (docs/tenancy.md);
  * plus any key of src/modules/auth/config.js (rateLimit, loginRateLimit, maxBodyBytes, trustProxy, webhook, lockThreshold, ...).
  */
@@ -199,7 +199,7 @@ export function createApp(ctx, { publicDir = PUBLIC_DIR, logger = null, backgrou
         const job = async (tctx) => {
           try {
             sealAudit(tctx);
-            await processDeliveries(tctx, { fetchImpl: c.fetch ?? globalThis.fetch, resolve: c.resolve });
+            await runDue(tctx); // schedules, queued jobs (webhook delivery, escalation, recurring bills, ETA sync) and the outbox, for THIS company
           } catch (e) { log({ level: 'error', msg: `background job failed${tctx.tenant ? ` (tenant ${tctx.tenant.slug})` : ''}: ${e.message}` }); }
         };
         if (tenants) await tenants.forEachActive(job); else await job(ctx); // every tenant is visited explicitly

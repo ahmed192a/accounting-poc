@@ -4,6 +4,7 @@ import { seedSettings } from './config.js';
 import { listAdapters } from './adapters/index.js';
 import { requirePerm } from '../../permissions.js';
 import * as live from './adapters/eta_live_sync.js';
+import { systemActor } from '../jobs/queue.js';
 
 // Tax and compliance: e-invoice documents with a hash chain, item codes, ETA registration wizard, VAT.
 // EVERYTHING that talks to a tax authority is a MOCK (see docs/tax.md); formats, rates, windows are UNVERIFIED.
@@ -24,6 +25,16 @@ export default {
     auditor: ['tax.view'],
     admin: ['tax.view', 'tax.configure'],
   },
+  // Scheduled twin of POST /api/tax/sync: mock documents, e-receipt queue, then the live adapter (a missing live setup is reported, not retried).
+  jobs: {
+    'eta.sync': async (ctx) => {
+      const user = systemActor(ctx);
+      const out = s.syncDocuments(ctx, user);
+      try { out.live = await live.liveSync(ctx, user); } catch (e) { if (typeof e.status !== 'number') throw e; out.live = { error: { code: e.code, message: e.message } }; }
+      return out;
+    },
+  },
+  schedules: [{ name: 'eta.sync', kind: 'eta.sync', everyMs: 5 * 60_000 }],
   exportTables: ['tax_documents', 'tax_item_codes', 'tax_parties', 'tax_vat_rates', 'tax_bill_tax', 'tax_wizard_steps', 'tax_live_docs'], // never tax_secrets
   routes: [
     route('GET', '/api/tax/dashboard', 'tax.view', 'Compliance dashboard', (c, u) => s.dashboard(c, u)),

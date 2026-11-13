@@ -3,6 +3,7 @@ import * as rules from './rules.js';
 import * as del from './delegations.js';
 import * as notes from './notifications.js';
 import { seed } from './seed.js';
+import { systemActor } from '../jobs/queue.js';
 
 const r = (method, path, summary, permission, handler) => ({ method, path, handler, meta: { summary, permission } });
 
@@ -41,6 +42,8 @@ export default {
     r('POST', '/api/notifications/read-all', 'Mark all your notifications read', 'approvals.view', (ctx, u) => notes.markAllRead(ctx, u)),
     r('POST', '/api/notifications/:id/read', 'Mark one notification read', 'approvals.view', (ctx, u, q) => notes.markRead(ctx, u, Number(q.params.id))),
   ],
+  jobs: { 'approvals.escalate': (ctx) => eng.processEscalations(ctx, systemActor(ctx)) },
+  schedules: [{ name: 'approvals.escalate', kind: 'approvals.escalate', everyMs: 15 * 60_000 }],
   exportTables: ['approvals_rules', 'approvals_rule_steps', 'approvals_requests', 'approvals_request_steps', 'approvals_delegations', 'approvals_history', 'approvals_notifications'],
   widgets: (ctx, user) => {
     if (!user.permissions.has('approvals.view')) return {};

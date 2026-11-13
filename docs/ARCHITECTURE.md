@@ -55,6 +55,7 @@ merged; add a new one. Two files with the same number fail at startup, so stay i
 | 700-799 | approvals and AI review         |
 | 800-899 | reserved                        |
 | 900-919 | tenancy (per-tenant databases) |
+| 920-939 | commands and jobs (jobs, schedules, outbox) |
 
 `001_core` holds the original schema unchanged (including the append-only triggers); `002_module_seeds` tracks which
 module seeds already ran. Prefix your tables with your area (`inventory_*`, `bank_*`) so names never clash.
@@ -70,6 +71,8 @@ export default {
   roleGrants: { manager: ['hello.view'] },         // built-in role -> atoms (owner always gets every atom)
   roleLimits: { manager: { 'hello.create': 500000 } }, // optional: built-in role -> { atom: max piastres }
   exportTables: ['hello_greetings'],               // optional: tables added to GET /api/export
+  jobs: { 'hello.tidy': (ctx, payload, job) => {} },   // optional: background job handlers (docs/jobs.md)
+  schedules: [{ name: 'hello.tidy', kind: 'hello.tidy', everyMs: 3600000 }], // optional: recurring definitions
   routes: [
     {
       method: 'GET',                               // GET POST PUT PATCH DELETE

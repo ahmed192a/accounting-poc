@@ -73,6 +73,8 @@ export default {
     R('GET', '/api/security/overview', (ctx, u) => overview(ctx, u), { summary: 'Security posture: MFA coverage, lockouts, sessions, keys, webhooks', permission: 'security.view' }),
     R('GET', '/api/security/limits', (ctx) => publishedLimits(ctx), { summary: 'Published rate limits and session policy' }, { public: true }),
   ],
+  jobs: { 'webhooks.deliver': hooks.deliverJob },
+  schedules: [{ name: 'webhooks.deliver', kind: 'webhooks.deliver', everyMs: 30_000 }],
   hooks: Object.fromEntries(EVENTS.map((e) => [e, (ctx, payload) => { hooks.enqueueEvent(ctx, e, payload); }])),
   seed: (ctx) => s.seedDemoCredentials(ctx),
 };

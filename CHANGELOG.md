@@ -5,6 +5,9 @@ All notable changes. Format based on Keep a Changelog; the project is pre-1.0 an
 ## [Unreleased]
 
 ### Added
+- `jobs` kernel module (migration 920): per-company job queue with leases, retries and backoff, interval and cron schedules, and a transactional outbox, with an injectable clock and nine permission-gated routes ([docs/jobs.md](docs/jobs.md)). Webhook delivery, approval escalation, recurring bills and ETA sync now run on it; their manual routes and buttons still work.
+
+### Added
 - Roadmap, plan, step-by-step run guide, screenshots and demo video (`scripts/capture-media.py`).
 
 ### Added
