@@ -6,12 +6,16 @@
    3. Any successful write (non-GET /api/*) empties the API cache, so the next read is fresh and never shows pre-write balances.
    Writes are never queued or replayed here: the offline write queue lives in the page (public/offline-queue.js, IndexedDB) because it
    needs the user's identity headers and a visible "pending" list. Nothing is cached for /api/auth/*, /api/admin/* or any other path. */
-const CACHE = 'acct-shell-v2';
+const CACHE = 'acct-shell-v3'; // bumped: the shell moved from one app.js to /core and /ui modules
 const API_CACHE = 'acct-api-v1';
 /* Exact paths whose GET responses may be served stale while offline (data the offline quick-sale / lookup screens need). */
 const API_GET = ['/api/home', '/api/items', '/api/customers', '/api/sales', '/api/invoices', '/api/bills', '/api/suppliers', '/api/demo-users', '/api/ui-modules'];
+/* The shell. Keep in step with public/core, public/ui and public/lib: test/client.layout.test.js fails when a file is missing here. */
 const PRECACHE = [
   '/', '/app.js', '/style.css', '/manifest.json',
+  '/core/ready.js', '/core/state.js', '/core/i18n.js', '/core/host.js', '/core/registry.js', '/core/login.js', '/core/api.js',
+  '/core/view.js', '/core/load.js', '/core/router.js', '/core/events.js', '/core/app.js', '/core/boot.js',
+  '/ui/chrome.js', '/ui/pages.js', '/ui/palette.js', '/ui/actions.js',
   '/lib/format.js', '/lib/router.js', '/lib/nav.js', '/lib/theme.js', '/lib/focus.js', '/lib/search.js', '/lib/shortcuts.js',
   '/offline-queue.js', '/lib/icons.js', '/lib/html.js', '/lib/ui.js', '/lib/design-page.js', '/lib/theme-boot.js',
   '/icons/icon.svg', '/icons/icon-192.png', '/icons/icon-512.png',
