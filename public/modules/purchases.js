@@ -67,6 +67,9 @@ export default function register(App) {
 
   App.on('bill', () => run(async () => {
     const r = await api('POST', '/api/bills', { supplier: val('bill-supplier'), category: val('bill-cat'), amount: App.toPiastres(val('bill-amount')) });
+    const ev = { bill: r, waitFor: [] }; // lets the documents module attach a captured receipt photo
+    document.dispatchEvent(new CustomEvent('purchases:bill-created', { detail: ev }));
+    await Promise.all(ev.waitFor);
     toast(t(r.status === 'approved' ? 'approved' : 'pending'), true);
   }));
 }
