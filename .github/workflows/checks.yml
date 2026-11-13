@@ -34,7 +34,7 @@ jobs:
         with:
           node-version: 22
       - run: npm run openapi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: openapi
           path: docs/openapi.json
