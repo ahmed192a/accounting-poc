@@ -12,7 +12,6 @@ export function up(db) {
       mime TEXT NOT NULL,
       size INTEGER NOT NULL CHECK (size > 0),
       sha256 TEXT NOT NULL,
-      data BLOB NOT NULL,
       status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','removed')),
       removed_reason TEXT,
       removed_by INTEGER,
@@ -21,6 +20,9 @@ export function up(db) {
       uploaded_by INTEGER NOT NULL,
       created_at INTEGER NOT NULL
     );
+    -- Bytes live apart from the metadata so the JSON export (GET /api/export) carries the metadata and hashes without blobs.
+    -- A SQLite backup (or tenant export) has the bytes. No view is used: a view would break the bills rebuild in 700 on adopted databases.
+    CREATE TABLE documents_blobs (document_id INTEGER PRIMARY KEY REFERENCES documents_files(id), data BLOB NOT NULL);
     CREATE INDEX documents_files_sha ON documents_files(sha256);
     CREATE TABLE documents_links (
       id INTEGER PRIMARY KEY,
@@ -42,15 +44,14 @@ export function up(db) {
       set_at INTEGER NOT NULL,
       PRIMARY KEY (entity_type, entity_id)
     );
-    CREATE VIEW documents_files_export AS
-      SELECT id, kind, filename, mime, size, sha256, hex(data) AS data_hex, status, removed_reason, removed_by, removed_at, legacy_id, uploaded_by, created_at FROM documents_files;
   `);
   // Backfill from the purchases attachments (the table may be missing in stripped-down fixtures).
   const has = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='purchases_attachments'").get();
   if (has) {
     db.exec(`
-      INSERT INTO documents_files (kind, filename, mime, size, sha256, data, legacy_id, uploaded_by, created_at)
-        SELECT 'attachment', filename, mime, size, sha256, data, id, uploaded_by, created_at FROM purchases_attachments;
+      INSERT INTO documents_files (kind, filename, mime, size, sha256, legacy_id, uploaded_by, created_at)
+        SELECT 'attachment', filename, mime, size, sha256, id, uploaded_by, created_at FROM purchases_attachments;
+      INSERT INTO documents_blobs (document_id, data) SELECT d.id, a.data FROM purchases_attachments a JOIN documents_files d ON d.legacy_id = a.id;
       INSERT INTO documents_links (document_id, entity_type, entity_id, linked_by, created_at)
         SELECT d.id, 'bill', a.bill_id, a.uploaded_by, a.created_at FROM purchases_attachments a JOIN documents_files d ON d.legacy_id = a.id;
     `);

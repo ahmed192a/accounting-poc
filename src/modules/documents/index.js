@@ -17,7 +17,7 @@ export default {
     accountant: ['documents.view', 'documents.upload'],
     auditor: ['documents.view'],
   },
-  exportTables: ['documents_files_export', 'documents_links', 'documents_edoc_status'],
+  exportTables: ['documents_files', 'documents_links', 'documents_edoc_status'],
   routes: [
     r('GET', '/api/documents/limits', 'Size, type and count limits of the document store', 'documents.view', (ctx, u) => s.limits(ctx, u)),
     r('GET', '/api/documents/edoc', 'Has-valid-e-document flag (yes/no/unknown, UNVERIFIED rule) for a bill or invoice (?entityType, ?entityId)', 'documents.view', (ctx, u, q) => s.getEdoc(ctx, u, q.query)),

@@ -57,8 +57,9 @@ export function syncLegacy(ctx) {
   if (!rows.length) return 0;
   tx(db, () => {
     for (const a of rows) {
-      const res = db.prepare("INSERT INTO documents_files (kind, filename, mime, size, sha256, data, legacy_id, uploaded_by, created_at) VALUES ('attachment',?,?,?,?,?,?,?,?)")
-        .run(a.filename, a.mime, a.size, a.sha256, a.data, a.id, a.uploaded_by, a.created_at);
+      const res = db.prepare("INSERT INTO documents_files (kind, filename, mime, size, sha256, legacy_id, uploaded_by, created_at) VALUES ('attachment',?,?,?,?,?,?,?)")
+        .run(a.filename, a.mime, a.size, a.sha256, a.id, a.uploaded_by, a.created_at);
+      db.prepare('INSERT INTO documents_blobs (document_id, data) VALUES (?,?)').run(Number(res.lastInsertRowid), a.data);
       db.prepare("INSERT INTO documents_links (document_id, entity_type, entity_id, linked_by, created_at) VALUES (?,'bill',?,?,?)").run(Number(res.lastInsertRowid), a.bill_id, a.uploaded_by, a.created_at);
     }
   });
@@ -104,9 +105,10 @@ export function addDocument(ctx, user, input = {}) {
     if (count >= MAX_PER_ENTITY) throw new AppError(409, 'TOO_MANY_DOCUMENTS', `A ${input.entityType} can hold at most ${MAX_PER_ENTITY} documents`);
     const dup = db.prepare("SELECT d.id FROM documents_files d JOIN documents_links l ON l.document_id = d.id WHERE d.sha256 = ? AND l.entity_type = ? AND l.entity_id = ? AND d.status = 'active'").get(sha, input.entityType, entityId);
     if (dup) throw new AppError(409, 'DUPLICATE_DOCUMENT', `The same file is already attached (document ${dup.id})`);
-    const res = db.prepare('INSERT INTO documents_files (kind, filename, mime, size, sha256, data, uploaded_by, created_at) VALUES (?,?,?,?,?,?,?,?)')
-      .run(kind, filename, input.mime, data.length, sha, data, user.id, ctx.now());
+    const res = db.prepare('INSERT INTO documents_files (kind, filename, mime, size, sha256, uploaded_by, created_at) VALUES (?,?,?,?,?,?,?)')
+      .run(kind, filename, input.mime, data.length, sha, user.id, ctx.now());
     const id = Number(res.lastInsertRowid);
+    db.prepare('INSERT INTO documents_blobs (document_id, data) VALUES (?,?)').run(id, data);
     db.prepare('INSERT INTO documents_links (document_id, entity_type, entity_id, linked_by, created_at) VALUES (?,?,?,?,?)').run(id, input.entityType, entityId, user.id, ctx.now());
     audit(ctx, { userId: user.id, action: 'document.added', type: 'document', id, newValue: { entityType: input.entityType, entityId, filename, mime: input.mime, size: data.length, sha256: sha, kind } });
     return { id, size: data.length, sha256: sha };
@@ -131,8 +133,10 @@ export function getContent(ctx, user, id) {
   requirePerm(user, 'documents.view');
   syncLegacy(ctx);
   const d = getRow(ctx.db, id);
-  const sha = createHash('sha256').update(d.data).digest('hex');
-  return { id: d.id, filename: d.filename, mime: d.mime, size: d.size, sha256: d.sha256, intact: sha === d.sha256, contentBase64: Buffer.from(d.data).toString('base64') };
+  const bytes = ctx.db.prepare('SELECT data FROM documents_blobs WHERE document_id = ?').get(id)?.data;
+  if (!bytes) throw new AppError(404, 'NOT_FOUND', 'Document content is missing');
+  const sha = createHash('sha256').update(bytes).digest('hex');
+  return { id: d.id, filename: d.filename, mime: d.mime, size: d.size, sha256: d.sha256, intact: sha === d.sha256, contentBase64: Buffer.from(bytes).toString('base64') };
 }
 
 export function linkDocument(ctx, user, id, input = {}) {
@@ -161,7 +165,8 @@ export function removeDocument(ctx, user, id, input = {}) {
   const { db } = ctx;
   const d = getRow(db, id);
   return tx(db, () => {
-    db.prepare("UPDATE documents_files SET status = 'removed', removed_reason = ?, removed_by = ?, removed_at = ?, data = x'00' WHERE id = ?").run(reason, user.id, ctx.now(), id);
+    db.prepare("UPDATE documents_files SET status = 'removed', removed_reason = ?, removed_by = ?, removed_at = ? WHERE id = ?").run(reason, user.id, ctx.now(), id);
+    db.prepare('DELETE FROM documents_blobs WHERE document_id = ?').run(id);
     audit(ctx, { userId: user.id, action: 'document.removed', type: 'document', id, oldValue: { filename: d.filename, sha256: d.sha256 }, reason });
     return { id, removed: true };
   });

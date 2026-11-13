@@ -45,7 +45,7 @@ test('documents: link to a purchase order, remove needs permission and reason an
   d.removeDocument(ctx, as('manager'), a.id, { reason: 'wrong file' });
   expectError(() => d.getContent(ctx, as('clerk'), a.id), 'NOT_FOUND');
   assert.equal(d.listDocuments(ctx, as('clerk'), { entityType: 'bill', entityId: bill }).length, 0);
-  assert.equal(ctx.db.prepare('SELECT length(data) n FROM documents_files WHERE id = ?').get(a.id).n, 1);
+  assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM documents_blobs WHERE document_id = ?').get(a.id).n, 0);
 });
 
 test('documents: files added through the old purchases API show up here (migration backfill and lazy sync)', () => {
@@ -87,7 +87,7 @@ test('documents: HTTP routes are permission gated and exported', async () => {
     assert.equal((await call('GET', `/api/documents/${up.body.id}/content`, 5)).body.intact, true);
     assert.equal((await call('GET', '/api/documents', null)).status, 401);
     const ex = await call('GET', '/api/export', 1);
-    assert.ok(ex.body.documents_files_export, 'export includes documents');
+    assert.ok(ex.body.documents_files, 'export includes documents');
   } finally { server.close(); }
 });
 
