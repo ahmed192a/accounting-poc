@@ -63,8 +63,18 @@ export function runMigrations(db, migrations = DEFAULT_MIGRATIONS) {
   return applied;
 }
 
-export function openDb(path = ':memory:') {
+export const BUSY_TIMEOUT_MS = 5000;
+
+/**
+ * Open a database and migrate it. For a file database this sets, once and for every caller (default tenant, tenant
+ * files, backups opened for verification): write-ahead logging (readers do not block the writer, and a copy made with
+ * VACUUM INTO or the SQLite backup API stays consistent) and a busy timeout (a second writer waits instead of failing
+ * at once with SQLITE_BUSY). In-memory databases ignore WAL, so only the timeout applies there.
+ */
+export function openDb(path = ':memory:', { busyTimeoutMs = BUSY_TIMEOUT_MS } = {}) {
   const db = new DatabaseSync(path);
+  db.exec(`PRAGMA busy_timeout = ${Math.max(0, Math.trunc(busyTimeoutMs))}`);
+  if (path !== ':memory:') db.exec('PRAGMA journal_mode = WAL');
   runMigrations(db);
   return db;
 }

@@ -55,6 +55,14 @@ Prices and plans were not re-verified for this document (UNVERIFIED); treat the 
 
 - SQLite with `DB_PATH` on a real disk or volume survives restarts. Back the file up (copy it while the app is idle, or use
   `sqlite3 file ".backup out.db"`). The in-app "Export everything" action gives a full JSON export including the audit log.
+- File databases run in write-ahead-log (WAL) mode with a 5 s busy timeout (set in `openDb`). A WAL database has `-wal` and
+  `-shm` files next to it: copy the file with `sqlite3 file ".backup out.db"` or the tenant backup action (`VACUUM INTO`), not
+  by copying the main file alone while the app runs.
+- **Restore drill.** `npm run restore-drill` provisions a company, backs it up, restores the backup into a fresh database and
+  checks that the audit hash chain verifies and the ledger totals match the source (exit 1 if not). Run
+  `node scripts/restore-drill.js --backup FILE` to restore and check a real backup file (integrity, chain, balanced ledger).
+  CI runs it on every change to `src/` and monthly (`.github/workflows/restore-drill.yml`). A backup that has not been restored
+  is not a backup.
 - Only run **one** instance per database file; SQLite is not designed for several app servers writing the same file.
 - The journal and audit log are append-only by database triggers, so restoring an old backup also removes newer entries:
   keep several generations.

@@ -77,7 +77,7 @@ owner can never list, create, suspend or export other companies, even though the
 | `POST /api/tenants` | `tenants.manage` | Provision |
 | `POST /api/tenants/:slug/suspend`, `/resume` | `tenants.manage` | Suspended: sign-in and every request get `403 TENANT_SUSPENDED`; data is kept; the default tenant cannot be suspended |
 | `GET /api/tenants/:slug/export` | `tenants.export` | The same JSON as `/api/export` for that tenant only; audited in both databases |
-| `POST /api/tenants/:slug/backup` | `tenants.export` | `VACUUM INTO TENANTS_DIR/backups/<slug>-<time>.db` (consistent while running); returns path, size, sha256. Never overwrites |
+| `POST /api/tenants/:slug/backup` | `tenants.export` | `VACUUM INTO TENANTS_DIR/backups/<slug>-<time>.db` (consistent while running); returns path, size, sha256. Never overwrites. `npm run restore-drill` proves such a backup restores: audit chain and ledger totals match (see DEPLOY.md) |
 
 `tenants.view` and `tenants.manage` go to the built-in admin role; `tenants.export` (another company's complete data) is held by the
 owner only. No hook events were added.
