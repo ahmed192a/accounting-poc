@@ -6,6 +6,7 @@ import * as rep from './reports.js';
 import * as att from './attachments.js';
 import * as rec from './recurring.js';
 import { seed } from './seed.js';
+import { systemActor } from '../jobs/queue.js';
 
 const EGP = 100;
 const r = (method, path, summary, permission, handler) => ({ method, path, handler, meta: { summary, permission } });
@@ -32,6 +33,8 @@ export default {
     manager: { 'purchases.approve': 20000 * EGP, 'purchases.pay': 20000 * EGP },
     clerk: { 'purchases.create': 5000 * EGP },
   },
+  jobs: { 'purchases.recurring': (ctx) => rec.runRecurring(ctx, systemActor(ctx)) },
+  schedules: [{ name: 'purchases.recurring', kind: 'purchases.recurring', cron: '5 * * * *' }],
   exportTables: [
     'purchases_suppliers', 'purchases_orders', 'purchases_order_lines', 'purchases_bill_lines', 'purchases_attachments_export',
     'purchases_payments', 'purchases_payment_allocations', 'purchases_recurring',
