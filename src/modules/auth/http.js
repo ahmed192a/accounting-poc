@@ -24,7 +24,7 @@ export function securityHeaders({ secure = false } = {}) {
     'x-content-type-options': 'nosniff',
     'x-frame-options': 'DENY',
     'referrer-policy': 'no-referrer',
-    'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+    'permissions-policy': 'camera=(self), microphone=(), geolocation=(), payment=()',
     'cross-origin-opener-policy': 'same-origin',
     'cross-origin-resource-policy': 'same-origin',
     ...(secure ? { 'strict-transport-security': 'max-age=31536000; includeSubDomains' } : {}),

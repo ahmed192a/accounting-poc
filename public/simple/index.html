@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Daily book</title>
+<meta name="description" content="Simple mode: sell, see what you are owed, get paid. Same books as full mode.">
+<meta name="theme-color" content="#1558c0">
+<meta name="color-scheme" content="light dark">
+<link rel="manifest" href="/simple/manifest.json">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="/simple/simple.css">
+<script src="/lib/theme-boot.js"></script>
+</head>
+<body>
+<a class="skip" href="#view">Skip to content</a>
+<header class="top">
+  <strong id="brand">Daily book</strong>
+  <span class="grow"></span>
+  <select id="user" hidden></select>
+  <button type="button" id="lang" class="btn small">العربية</button>
+  <a id="full" class="btn small" href="/?full=1">Full mode</a>
+</header>
+<div id="conn" class="conn" role="status" hidden></div>
+<main id="view" tabindex="-1"><p class="muted" role="status">Loading...</p></main>
+<nav id="tabs" class="tabs" aria-label="Main"></nav>
+<dialog id="sheet" class="sheet" aria-modal="true"></dialog>
+<div id="toast" class="toast" role="status" hidden></div>
+<div id="print-area" aria-hidden="true"></div>
+<script type="module" src="/simple/main.js"></script>
+</body>
+</html>
