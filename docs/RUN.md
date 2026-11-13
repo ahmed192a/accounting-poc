@@ -12,8 +12,11 @@ cd accounting-poc
 ## 2. Start the app
 
 ```
-npm start
+SEED_DEMO=1 npm start      # with the demo company: six demo users, sample items, customers, an opening balance
+npm start                  # reference data only (chart of accounts, settings, an owner); same as a real new company
 ```
+
+(`npm start -- --demo` is the same as `SEED_DEMO=1`.) The role walk-through below needs the demo data.
 
 Open <http://localhost:3000>. Data lives in memory and resets when you stop the server. To keep data in a file:
 

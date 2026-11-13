@@ -13,6 +13,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: SEED_DEMO            # this blueprint is a public demo: add the sample company
+        value: "1"
       # DB_PATH is not set on purpose: the free plan has no disk, so the database lives in memory.
       # Secrets: let Render generate them instead of committing values.
       # - key: AUTH_REQUIRED          # enable once real sign-in ships (see docs/DEPLOY.md)

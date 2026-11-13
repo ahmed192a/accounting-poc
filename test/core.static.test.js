@@ -4,7 +4,7 @@ import http from 'node:http';
 import { mkdtempSync, mkdirSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createApp, createSeededContext, PUBLIC_DIR, resolvePublicPath } from '../src/server.js';
+import { createApp, createDemoContext, PUBLIC_DIR, resolvePublicPath } from '../src/server.js';
 import { startApp } from './helpers.js';
 
 // fetch() normalises ".." away, so traversal attempts go through a raw request.
@@ -18,7 +18,7 @@ const raw = (base, path) => new Promise((resolve, reject) => {
 });
 
 test('static: the shell, app.js, style.css and every UI module are served with the right content type', async () => {
-  const { server, base } = await startApp(createApp, createSeededContext());
+  const { server, base } = await startApp(createApp, createDemoContext());
   try {
     const type = async (p) => { const r = await fetch(base + p); return [r.status, r.headers.get('content-type')]; };
     assert.deepEqual(await type('/'), [200, 'text/html; charset=utf-8']);
@@ -31,7 +31,7 @@ test('static: the shell, app.js, style.css and every UI module are served with t
 });
 
 test('static: GET /api/ui-modules is public and lists the files in public/modules', async () => {
-  const { server, call } = await startApp(createApp, createSeededContext());
+  const { server, call } = await startApp(createApp, createDemoContext());
   try {
     const r = await call('GET', '/api/ui-modules'); // no user header
     assert.equal(r.status, 200);
@@ -50,7 +50,7 @@ test('static: json, svg and png are served with correct types; unknown extension
     writeFileSync(join(dir, 'a.exe'), 'nope');
     writeFileSync(join(dir, '.secret.json'), '{}');
     mkdirSync(join(dir, 'sub'));
-    const { server, base } = await startApp(createApp, createSeededContext(), { publicDir: dir });
+    const { server, base } = await startApp(createApp, createDemoContext(), { publicDir: dir });
     try {
       const get = async (p) => { const r = await fetch(base + p); return [r.status, r.headers.get('content-type')]; };
       assert.deepEqual(await get('/a.json'), [200, 'application/json; charset=utf-8']);
@@ -69,7 +69,7 @@ test('static: json, svg and png are served with correct types; unknown extension
 });
 
 test('static: path traversal cannot escape public/', async () => {
-  const { server, base } = await startApp(createApp, createSeededContext());
+  const { server, base } = await startApp(createApp, createDemoContext());
   try {
     for (const p of [
       '/../package.json', '/..%2fpackage.json', '/%2e%2e/package.json', '/%2e%2e%2fsrc/server.js', '/modules/../../package.json',

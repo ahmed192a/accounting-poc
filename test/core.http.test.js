@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp, createSeededContext } from '../src/server.js';
+import { createApp, createDemoContext } from '../src/server.js';
 
 async function start() {
-  const server = createApp(createSeededContext());
+  const server = createApp(createDemoContext());
   await new Promise((r) => server.listen(0, r));
   const base = `http://127.0.0.1:${server.address().port}`;
   const call = async (method, path, userId, body) => {

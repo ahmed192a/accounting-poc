@@ -2,7 +2,7 @@ import * as s from './service.js';
 import * as fx from './fx.js';
 import * as coa from './coa.js';
 import * as cons from './consolidation.js';
-import { seed } from './seed.js';
+import { seed, demoSeed } from './seed.js';
 import { requireAny } from '../../permissions.js';
 
 // Multi-entity, multi-currency, consolidation and chart-of-accounts management. See docs/entities.md.
@@ -57,4 +57,5 @@ export default {
     return { entities: { list: s.listEntities(ctx, user).map((e) => ({ id: e.id, code: e.code, name: e.name, nameAr: e.nameAr, currency: e.currency, active: e.active })) } };
   },
   seed,
+  demoSeed,
 };

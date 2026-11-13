@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp, createSeededContext } from '../src/server.js';
+import { createApp, createDemoContext } from '../src/server.js';
 import { loadModules, MODULES_DIR, defaultRegistry } from '../src/modules.js';
 import { PERMISSIONS, BUILTIN_ROLES, loadUser } from '../src/permissions.js';
 import { tempModules, startApp } from './helpers.js';
@@ -39,7 +39,7 @@ test('module loader: a fake module in a temp dir contributes a route, a permissi
   assert.ok(registry.modules.some((m) => m.name === 'fake'));
   assert.deepEqual(registry.permissions['fake.read'], 'Read the fake thing');
 
-  const ctx = createSeededContext(':memory:', registry);
+  const ctx = createDemoContext(':memory:', registry);
   // permission registry
   assert.equal(PERMISSIONS['fake.read'], 'Read the fake thing');
   // role grants merged into the built-in roles (database and in-memory definitions)
@@ -77,7 +77,7 @@ test('module loader: seeds run once per database, core seed first', async () => 
   const dir = tempModules({ 'aaa/index.js': `export default { name: 'aaa', seed: () => { globalThis.__seedOrder.push('aaa'); } };` });
   globalThis.__seedOrder = order;
   const registry = await loadModules([MODULES_DIR, dir]);
-  const ctx = createSeededContext(':memory:', registry);
+  const ctx = createDemoContext(':memory:', registry);
   assert.deepEqual(order, ['aaa']);
   assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM users').get().n, 6, 'core seeded before/independently of aaa');
   assert.equal(registry.modules[0].name, 'core');
@@ -97,12 +97,12 @@ test('module loader: contract violations fail loudly at load time', async () => 
   // a widget key clash is detected when the home page is built
   const dir = tempModules({ 'x/index.js': `export default { name: 'x', widgets: () => ({ cash: 1 }) };` });
   const registry = await loadModules([MODULES_DIR, dir]);
-  const ctx = createSeededContext(':memory:', registry);
+  const ctx = createDemoContext(':memory:', registry);
   assert.throws(() => registry.buildWidgets(ctx, loadUser(ctx, 1)), /more than one module/);
 });
 
 test('module loader: unknown role in roleGrants is rejected when the registry is applied', async () => {
   const dir = tempModules({ 'x/index.js': `export default { name: 'x', permissions: { 'x.go': 'Go' }, roleGrants: { nobody: ['x.go'] } };` });
   const registry = await loadModules([MODULES_DIR, dir]);
-  assert.throws(() => createSeededContext(':memory:', registry), /Unknown built-in role "nobody"/);
+  assert.throws(() => createDemoContext(':memory:', registry), /Unknown built-in role "nobody"/);
 });

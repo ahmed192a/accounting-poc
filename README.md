@@ -25,7 +25,7 @@ Full walkthrough: [docs/RUN.md](docs/RUN.md).
 Needs Node 22.13 or newer. No `npm install`.
 
 ```
-npm start                                # http://localhost:3000, data in memory
+SEED_DEMO=1 npm start                    # http://localhost:3000, data in memory, with demo data (without SEED_DEMO: reference data only)
 PORT=4000 DB_PATH=./data.db npm start    # another port, data kept in a file
 npm test                                 # unit and HTTP tests
 npm run coverage                         # tests with coverage thresholds

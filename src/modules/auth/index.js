@@ -74,5 +74,6 @@ export default {
     R('GET', '/api/security/limits', (ctx) => publishedLimits(ctx), { summary: 'Published rate limits and session policy' }, { public: true }),
   ],
   hooks: Object.fromEntries(EVENTS.map((e) => [e, (ctx, payload) => { hooks.enqueueEvent(ctx, e, payload); }])),
-  seed: (ctx) => s.seedDemoCredentials(ctx),
+  // Demo credentials only: a real company gets its owner credential from first-run setup or tenant provisioning.
+  demoSeed: (ctx) => s.seedDemoCredentials(ctx),
 };

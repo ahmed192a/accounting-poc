@@ -212,15 +212,24 @@ export function createApp(ctx, { publicDir = PUBLIC_DIR, logger = null, backgrou
   return server;
 }
 
-/** Open the database (running migrations), load the modules, sync built-in roles, run pending seeds. */
-export function createSeededContext(path = ':memory:', registry = defaultRegistry) {
-  return initContext(createContext(openDb(path), registry), registry);
+/**
+ * Open the database (running migrations), load the modules, sync built-in roles, run pending reference seeds
+ * (chart of accounts, settings, the owner placeholder). Demo data (demo users, items, customers, opening balance,
+ * demo credentials) is added only with `{ demo: true }`: see initContext in src/modules.js.
+ */
+export function createSeededContext(path = ':memory:', registry = defaultRegistry, opts = {}) {
+  return initContext(createContext(openDb(path), registry), registry, opts);
 }
+
+/** Reference seeds plus the demo data set. What tests, the demo switcher and `SEED_DEMO=1` / `--demo` use. */
+export const createDemoContext = (path = ':memory:', registry = defaultRegistry) => createSeededContext(path, registry, { demo: true });
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const port = Number(process.env.PORT ?? 3000);
   const tenants = process.env.TENANTS_DIR ? { dir: process.env.TENANTS_DIR, maxOpen: Number(process.env.TENANT_MAX_OPEN) || 50 } : null;
-  createApp(createSeededContext(process.env.DB_PATH ?? ':memory:'), { logger: process.env.REQUEST_LOG === '0' ? null : defaultLogger, tenants }).listen(port, () => {
-    console.log(`Accounting PoC running at http://localhost:${port} (${process.env.AUTH_REQUIRED === '1' ? 'sign-in REQUIRED' : 'demo mode: x-user-id identity, demo credentials seeded'}${tenants ? `, multi-tenant: one database per company in ${tenants.dir}` : ''})`);
+  // Demo data is opt-in: SEED_DEMO=1 or --demo. Without it a new database holds reference data only (docs/ARCHITECTURE.md, "Seeds").
+  const demo = process.env.SEED_DEMO === '1' || process.argv.includes('--demo');
+  createApp(createSeededContext(process.env.DB_PATH ?? ':memory:', defaultRegistry, { demo }), { logger: process.env.REQUEST_LOG === '0' ? null : defaultLogger, tenants }).listen(port, () => {
+    console.log(`Accounting PoC running at http://localhost:${port} (${process.env.AUTH_REQUIRED === '1' ? 'sign-in REQUIRED' : (demo ? 'demo mode: x-user-id identity, demo data and credentials seeded' : 'demo mode: x-user-id identity, reference data only; SEED_DEMO=1 adds demo data')}${tenants ? `, multi-tenant: one database per company in ${tenants.dir}` : ''})`);
   });
 }

@@ -4,14 +4,14 @@ import * as fs from 'node:fs';
 import { mkdtempSync, existsSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createSeededContext } from '../src/server.js';
+import { createDemoContext } from '../src/server.js';
 import { createTenantManager } from '../src/tenants.js';
 import { loadUser } from '../src/permissions.js';
 import { expectError } from './helpers.js';
 import { PW } from './tenancy.helpers.js';
 
 const operator = (ctx) => loadUser(ctx, 1);
-const mk = (opts = {}) => { const ctx = createSeededContext(); return { ctx, m: createTenantManager(ctx, { dir: mkdtempSync(join(tmpdir(), 'poc-mgr-')), ...opts }) }; };
+const mk = (opts = {}) => { const ctx = createDemoContext(); return { ctx, m: createTenantManager(ctx, { dir: mkdtempSync(join(tmpdir(), 'poc-mgr-')), ...opts }) }; };
 const make = (m, ctx, slug, email = `ceo.${slug}@x.test`) => m.create(operator(ctx), { slug, name: `${slug} Co`, ownerEmail: email, ownerPassword: PW });
 
 test('manager: the default tenant is registered at once and the context is decorated', () => {
@@ -90,7 +90,7 @@ test('manager: opening a database that carries another tenant identity is refuse
   m.close();
   const { copyFileSync } = fs;
   copyFileSync(join(m.dir, 'tenant-3.db'), join(m.dir, 'tenant-2.db'));
-  const m2 = createTenantManager(createSeededContext(), { dir: m.dir });
+  const m2 = createTenantManager(createDemoContext(), { dir: m.dir });
   expectError(() => m2.with('alpha', () => {}), 'TENANT_DB_MISMATCH');
   m2.with('beta', (t) => assert.equal(t.tenant.slug, 'beta'));
   // credential probing skips the damaged tenant instead of failing
@@ -104,7 +104,7 @@ test('manager: a file that is not a tenant database at all (no identity row) is 
   make(m, ctx, 'alpha');
   m.close();
   writeFileSync(join(m.dir, 'tenant-2.db'), '');                                    // empty file: a brand new database with no identity
-  const m2 = createTenantManager(createSeededContext(), { dir: m.dir });
+  const m2 = createTenantManager(createDemoContext(), { dir: m.dir });
   expectError(() => m2.with('alpha', () => {}), 'TENANT_DB_MISMATCH');
 });
 
@@ -121,20 +121,21 @@ test('manager: export and backup are audited, backup needs a folder, and stats w
   assert.equal(st.activeUsers, 1);
   assert.ok(st.bytes > 0);
   assert.ok(ctx.db.prepare("SELECT 1 FROM audit_log WHERE action = 'tenant.backup'").get());
-  const mem = createTenantManager(createSeededContext(), {});
+  const mem = createTenantManager(createDemoContext(), {});
   make(mem, mem.with('default', (c) => c), 'alpha');
   expectError(() => mem.backup(op, 'alpha'), 'NO_BACKUP_DIR');
 });
 
 test('manager: in-memory mode (no dir) works for tests and demos and keeps tenants separate', () => {
-  const ctx = createSeededContext();
+  const ctx = createDemoContext();
   const m = createTenantManager(ctx, {});
   make(m, ctx, 'alpha'); make(m, ctx, 'beta');
   m.with('alpha', (a) => a.db.prepare("INSERT INTO settings (key, value) VALUES ('only_alpha', '1')").run());
   m.with('beta', (b) => assert.equal(b.db.prepare("SELECT 1 FROM settings WHERE key = 'only_alpha'").get(), undefined));
   assert.equal(ctx.db.prepare("SELECT 1 FROM settings WHERE key = 'only_alpha'").get(), undefined);
   const ids = m.with('alpha', (a) => a.db.prepare('SELECT id FROM users ORDER BY id').all().map((r) => r.id));
-  assert.deepEqual(ids, ctx.db.prepare('SELECT id FROM users ORDER BY id').all().map((r) => r.id)); // same ids in every database
+  assert.deepEqual(ids, [1]); // a provisioned company has its owner only (id 1, same id as the default tenant's owner)
+  assert.equal(ctx.db.prepare('SELECT COUNT(*) n FROM users').get().n, 6); // the default (demo) tenant keeps its six demo users
 });
 
 test('manager: forEachActive skips suspended tenants and keeps going when one callback fails', async () => {
@@ -150,7 +151,7 @@ test('a second createTenantManager on the same folder sees the earlier tenants a
   const { ctx, m } = mk();
   make(m, ctx, 'alpha');
   m.close();
-  const m2 = createTenantManager(createSeededContext(), { dir: m.dir });
+  const m2 = createTenantManager(createDemoContext(), { dir: m.dir });
   assert.deepEqual(m2.list().map((t) => t.slug), ['default', 'alpha']);
   assert.equal(m2.multi, true);
   m2.close();

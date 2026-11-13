@@ -1,4 +1,4 @@
-import { createApp, createSeededContext } from '../src/server.js';
+import { createApp, createDemoContext } from '../src/server.js';
 import { DEMO_PASSWORD } from '../src/modules/auth/service.js';
 
 export { DEMO_PASSWORD };
@@ -12,7 +12,7 @@ export const OWNER_PW = 'Correct-Horse-Battery-9';
 export async function boot({ required = false, env = {}, ...opts } = {}) {
   const fullEnv = required ? { AUTH_REQUIRED: '1', INITIAL_OWNER_EMAIL: 'owner@example.test', INITIAL_OWNER_PASSWORD: OWNER_PW, ...env } : { ...env };
   const logs = [];
-  const ctx = createSeededContext();
+  const ctx = createDemoContext();
   const server = createApp(ctx, { backgroundJobs: false, loginRateLimit: { capacity: 1000, perMinute: 1000 }, env: fullEnv, authRequired: required, logger: (e) => logs.push(e), ...opts });
   await new Promise((r) => server.listen(0, r));
   const base = `http://127.0.0.1:${server.address().port}`;

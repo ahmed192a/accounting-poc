@@ -1,6 +1,6 @@
 import * as s from './service.js';
 import { entityIdOf, getFiscal } from '../entities/service.js';
-import { seed } from './seed.js';
+import { seed, demoSeed } from './seed.js';
 import * as closing from './closing.js';
 
 // Journal entries, reversal, period lock, reports. The posting engine itself is src/ledger.js.
@@ -33,4 +33,5 @@ export default {
   ],
   widgets: s.widgets,
   seed,
+  demoSeed,
 };

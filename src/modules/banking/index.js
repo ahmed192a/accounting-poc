@@ -1,5 +1,5 @@
 import * as s from './service.js';
-import { seed } from './seed.js';
+import { seed, demoSeed } from './seed.js';
 
 // Banking: bank/cash/wallet accounts, CSV statement import, bank rules, matching, reconciliation.
 // banking.view is declared by the ledger module and reused here for read access.
@@ -50,4 +50,5 @@ export default {
   ],
   widgets: s.widgets,
   seed,
+  demoSeed,
 };

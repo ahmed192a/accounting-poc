@@ -9,7 +9,7 @@ PORT = os.environ.get("POC_PORT", "3201")
 OUT = os.environ.get("POC_SHOTS") or "/tmp/offline-shots"
 os.makedirs(OUT, exist_ok=True)
 BASE = f"http://127.0.0.1:{PORT}"
-server = subprocess.Popen(["node", "--no-warnings", "src/server.js"], cwd=POC_DIR, env={**os.environ, "PORT": PORT, "REQUEST_LOG": "0"})
+server = subprocess.Popen(["node", "--no-warnings", "src/server.js"], cwd=POC_DIR, env={**os.environ, "PORT": PORT, "REQUEST_LOG": "0", "SEED_DEMO": "1"})
 for _ in range(50):
     try: urllib.request.urlopen(f"{BASE}/api/demo-users"); break
     except Exception: time.sleep(0.1)

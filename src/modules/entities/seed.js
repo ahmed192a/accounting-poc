@@ -15,6 +15,9 @@ const RATES = [['USD', 48500000], ['EUR', 52800000], ['SAR', 12930000]];
 export function seed(ctx) {
   const acc = ctx.db.prepare('INSERT OR IGNORE INTO accounts (code, name, name_ar, type) VALUES (?,?,?,?)');
   ACCOUNTS.forEach((a) => acc.run(...a));
+}
+
+export function demoSeed(ctx) {
   const date = isoDate(ctx.now());
   const rate = ctx.db.prepare('INSERT INTO entities_rates (currency, rate_date, rate_micro, source, created_by, created_at) VALUES (?,?,?,?,1,?)');
   RATES.forEach(([c, r]) => rate.run(c, date, r, 'seed', ctx.now()));

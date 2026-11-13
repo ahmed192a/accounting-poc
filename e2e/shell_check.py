@@ -45,7 +45,7 @@ shutil.copy(os.path.join(SRC_DIR, "package.json"), work)
 with open(os.path.join(work, "public", "modules", "zz-shell-fixture.js"), "w") as f:
     f.write(FIXTURE)
 
-server = subprocess.Popen(["node", "--no-warnings", "src/server.js"], cwd=work, env={**os.environ, "PORT": PORT}, stdout=subprocess.DEVNULL)
+server = subprocess.Popen(["node", "--no-warnings", "src/server.js"], cwd=work, env={**os.environ, "PORT": PORT, "SEED_DEMO": "1"}, stdout=subprocess.DEVNULL)
 BASE = f"http://127.0.0.1:{PORT}"
 for _ in range(80):
     try:

@@ -1,7 +1,7 @@
 import { readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as s from './service.js';
-import { seed } from './seed.js';
+import { seed, demoSeed } from './seed.js';
 
 const UI_MODULES_DIR = fileURLToPath(new URL('../../../public/modules/', import.meta.url));
 
@@ -44,4 +44,5 @@ export default {
   ],
   widgets: s.widgets,
   seed,
+  demoSeed,
 };

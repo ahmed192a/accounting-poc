@@ -19,7 +19,7 @@ ALLOWED_4XX = {400, 403, 409, 422}
 NAV_SELECTORS = ["[role=tab]", "[data-page]", "nav a", "nav button", ".tabs button", ".tabs a", ".nav button", ".nav a"]
 os.makedirs(OUT, exist_ok=True)
 
-server = subprocess.Popen(["node", "--no-warnings", "src/server.js"], cwd=POC_DIR, env={**os.environ, "PORT": PORT})
+server = subprocess.Popen(["node", "--no-warnings", "src/server.js"], cwd=POC_DIR, env={**os.environ, "PORT": PORT, "SEED_DEMO": "1"})
 up = False
 for _ in range(100):
     try:

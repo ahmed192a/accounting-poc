@@ -13,9 +13,13 @@ const CUSTOMERS = [
 ];
 
 export function seed(ctx) {
+  ctx.db.prepare("INSERT INTO settings (key, value) VALUES ('vat_rate_bp', '1400')").run(); // 14% VAT, configurable; verify the rate for your goods
+}
+
+// Demo: sample items and customers.
+export function demoSeed(ctx) {
   const item = ctx.db.prepare('INSERT INTO items (sku, name, name_ar, price, eta_code) VALUES (?,?,?,?,?)');
   ITEMS.forEach((i) => item.run(...i));
-  ctx.db.prepare("INSERT INTO settings (key, value) VALUES ('vat_rate_bp', '1400')").run(); // 14% VAT, configurable; verify the rate for your goods
   const cust = ctx.db.prepare('INSERT INTO sales_customers (name, phone, tax_id, address, credit_limit, created_by, created_at) VALUES (?,?,?,?,?,1,?)');
   CUSTOMERS.forEach((c) => cust.run(...c, ctx.now()));
 }

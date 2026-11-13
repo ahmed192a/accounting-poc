@@ -1,7 +1,7 @@
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createApp, createSeededContext } from '../src/server.js';
+import { createApp, createDemoContext } from '../src/server.js';
 
 export const OP_EMAIL = 'platform-op@example.test';
 export const OP_PW = 'Operator-Horse-Battery-9';       // secret-scan:ignore test fixture
@@ -43,7 +43,7 @@ export function client(base) {
  * Boot an app with tenancy enabled. required (default true) = AUTH_REQUIRED mode with a default-tenant owner (OP_EMAIL / OP_PW),
  * who is the platform operator. dir: tenants folder (default a fresh temp dir).
  */
-export async function bootTenancy({ required = true, dir = mkdtempSync(join(tmpdir(), 'poc-tenants-')), maxOpen, ctx = createSeededContext(), ...opts } = {}) {
+export async function bootTenancy({ required = true, dir = mkdtempSync(join(tmpdir(), 'poc-tenants-')), maxOpen, ctx = createDemoContext(), ...opts } = {}) {
   const env = required ? { AUTH_REQUIRED: '1', INITIAL_OWNER_EMAIL: OP_EMAIL, INITIAL_OWNER_PASSWORD: OP_PW } : {};
   const server = createApp(ctx, {
     backgroundJobs: true, env, authRequired: required, tenants: { dir, ...(maxOpen ? { maxOpen } : {}) },

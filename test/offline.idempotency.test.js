@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp, createSeededContext } from '../src/server.js';
+import { createApp, createDemoContext } from '../src/server.js';
 import { startApp } from './helpers.js';
 import { canonicalJson, purgeExpired, IDEMPOTENCY_TTL_MS } from '../src/idempotency.js';
 
@@ -14,7 +14,7 @@ const sale = { items: [{ sku: 'TEA', qty: 1 }] };
 const count = (ctx) => ctx.db.prepare('SELECT COUNT(*) n FROM sales').get().n;
 async function firstSku(call) { const r = await call('GET', '/api/items', 3); return r.body[0].sku; }
 const boot = async () => {
-  const ctx = createSeededContext();
+  const ctx = createDemoContext();
   const app = await startApp(createApp, ctx, { backgroundJobs: false });
   const sku = await firstSku(app.call);
   return { ctx, ...app, body: { items: [{ sku, qty: 1 }] } };

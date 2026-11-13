@@ -4,7 +4,7 @@ import { readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { bootTenancy, client, PW, OP_EMAIL, OP_PW } from './tenancy.helpers.js';
-import { createApp, createSeededContext } from '../src/server.js';
+import { createApp, createDemoContext } from '../src/server.js';
 
 const withApp = (opts, fn) => async () => {
   const app = await bootTenancy(opts);
@@ -14,7 +14,7 @@ const owner = async (app, email) => { const c = app.client(); const r = await c.
 const newCustomer = (c, name) => c.call('POST', '/api/customers', { body: { name } });
 
 test('single-tenant mode is unchanged: no tenants option, tenancy routes say so, demo identity works', async () => {
-  const ctx = createSeededContext();
+  const ctx = createDemoContext();
   const server = createApp(ctx, { backgroundJobs: false });
   await new Promise((r) => server.listen(0, r));
   const c = client(`http://127.0.0.1:${server.address().port}`);
@@ -107,9 +107,9 @@ test('isolation: same ids in two tenants, no leakage in either direction', withA
   assert.equal((await a.call('GET', '/api/auth/me')).body.user.id, (await b.call('GET', '/api/auth/me')).body.user.id);
   const auditA = JSON.stringify((await a.call('GET', '/api/audit')).body);
   assert.ok(!auditA.includes('Beta-only') && !auditA.includes('beta'));
-  // an invoice number sequence is independent
-  const items = (await a.call('GET', '/api/items')).body;
-  assert.ok(items.length > 0);
+  // a new company starts with reference data only: no demo items (the default tenant's demo items stay in the default tenant)
+  assert.equal((await a.call('GET', '/api/items')).body.length, 0);
+  assert.ok(((await app.operator.call('GET', '/api/items')).body).length > 0);
 }));
 
 test('a user of A cannot authenticate against B: wrong tenant login, session and API key all stay in A', withApp({}, async (app) => {
