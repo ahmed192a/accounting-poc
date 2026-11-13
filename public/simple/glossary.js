@@ -1,0 +1,73 @@
+// Simple mode words. Two things live here:
+//  1. UI strings (en, ar) for the shell.
+//  2. The glossary: ledger/accounting term -> the word a shopkeeper uses, in Arabic and English.
+// UNVERIFIED: the Arabic wording is a first draft written without a native speaker; DESIGN_PLAN 4.1 requires native review
+// before real users see it. Terms marked `egy` are colloquial Egyptian forms to confirm in the validation interviews.
+
+export const GLOSSARY = [
+  { key: 'sales', ledger: 'Sales revenue', en: 'Sold', ar: 'المبيعات', hint: { en: 'Money your shop earned from selling.', ar: 'ما كسبه المحل من البيع.' } },
+  { key: 'cash', ledger: 'Cash (account 1000)', en: 'Drawer', ar: 'الدرج', egy: true, hint: { en: 'Cash you should be holding.', ar: 'الفلوس النقدية اللي المفروض معاك.' } },
+  { key: 'wallet', ledger: 'Mobile wallets (1020)', en: 'Wallet', ar: 'المحفظة', hint: { en: 'Money received on a mobile wallet.', ar: 'فلوس وصلتك على محفظة الموبايل.' } },
+  { key: 'receivable', ledger: 'Accounts receivable', en: 'Owed to me', ar: 'ليّ عند الناس', egy: true, hint: { en: 'Customers who took goods and have not paid yet.', ar: 'زبائن أخدوا بضاعة ولسه ما دفعوش.' } },
+  { key: 'payable', ledger: 'Accounts payable', en: 'I owe', ar: 'عليّ للموردين', egy: true, hint: { en: 'What you still have to pay suppliers.', ar: 'اللي لسه لازم تدفعه للموردين.' } },
+  { key: 'invoice', ledger: 'Invoice', en: 'Sale on credit', ar: 'بيع آجل', hint: { en: 'A sale where the customer pays later.', ar: 'بيع والزبون يدفع بعدين.' } },
+  { key: 'payment', ledger: 'Customer payment (allocation)', en: 'Got paid', ar: 'تحصيل', hint: { en: 'A customer paid some or all of what they owe.', ar: 'زبون دفع كل أو جزء من اللي عليه.' } },
+  { key: 'partial', ledger: 'Partial allocation', en: 'Paid part', ar: 'دفع جزء', hint: { en: 'The customer paid less than the full amount.', ar: 'الزبون دفع أقل من المبلغ كله.' } },
+  { key: 'overdue', ledger: 'Days past due', en: 'Days late', ar: 'أيام التأخير', hint: { en: 'Days since the customer should have paid.', ar: 'عدد الأيام من ميعاد السداد.' } },
+  { key: 'vat', ledger: 'VAT payable (2100)', en: 'Sales tax', ar: 'ضريبة المبيعات', hint: { en: 'Tax you collect for the government.', ar: 'ضريبة بتحصّلها للحكومة.' } },
+  { key: 'credit_note', ledger: 'Credit note', en: 'Return', ar: 'مرتجع', hint: { en: 'Goods came back or a price was corrected. Done in full mode.', ar: 'بضاعة رجعت أو سعر اتصحح. بيتعمل من الوضع الكامل.' } },
+  { key: 'reversal', ledger: 'Reversal entry', en: 'Cancel with a reason', ar: 'إلغاء بسبب', hint: { en: 'Books are never erased; a cancel is a new line that cancels the old one. Done in full mode.', ar: 'الدفتر ما بيتمسحش؛ الإلغاء سطر جديد بيلغي القديم. بيتعمل من الوضع الكامل.' } },
+  { key: 'entry', ledger: 'Journal entry', en: 'Record', ar: 'قيد', hint: { en: 'One line in the books. Every sale and payment makes one.', ar: 'سطر في الدفاتر. كل بيع وتحصيل بيعمل قيد.' } },
+  { key: 'stock', ledger: 'Inventory', en: 'Stock', ar: 'المخزون', hint: { en: 'Goods on your shelves.', ar: 'البضاعة اللي على الرفوف.' } },
+  { key: 'receipt', ledger: 'E-receipt', en: 'Receipt', ar: 'إيصال', hint: { en: 'What the customer gets. The tax-authority e-receipt is a MOCK in this PoC.', ar: 'اللي بيستلمه الزبون. الإيصال الإلكتروني للضرائب تجريبي (MOCK) في هذا النموذج.' } },
+  { key: 'customer', ledger: 'Customer (party)', en: 'Customer', ar: 'عميل', hint: { en: 'Someone you sell to.', ar: 'اللي بتبيعله.' } },
+];
+
+export const STRINGS = {
+  en: {
+    appName: 'Daily book', tabToday: 'Today', tabSell: 'Sell', tabOwed: 'Owed', tabWords: 'Words',
+    fullMode: 'Full mode', lang: 'العربية', user: 'User', signIn: 'Sign in to continue', signInGo: 'Open sign-in',
+    soldToday: 'sold today', sales: 'sales', drawer: 'Drawer', drawerNote: 'cash account only', noDrawer: 'Drawer balance is not shown for your role.',
+    owedToYou: 'Owed to you', oldest: 'Longest waiting', nobodyOwes: 'Nobody owes you anything.', daysLate: 'days late', notDue: 'not due yet', seeAll: 'See everyone',
+    compliance: 'Compliance', complianceNone: 'Not connected yet', complianceNote: 'Placeholder. The compliance check (DESIGN_PLAN 4.2) is not built, so no light is shown.',
+    sell: 'Sell', owed: 'Owed', paid: 'Paid', refresh: 'Refresh', loading: 'Loading...',
+    search: 'Search items or type a code', scan: 'Scan barcode', scanning: 'Point the camera at the barcode', stopScan: 'Stop', typeCode: 'Type a code', find: 'Find',
+    scanNone: 'Camera scanning is not available here. Type the code instead.', scanDenied: 'Camera is blocked. Type the code instead.', codeNotFound: 'No item with this code.',
+    cart: 'Basket', emptyCart: 'Tap an item to add it.', plus: 'More', minus: 'Less', remove: 'Remove',
+    beforeTax: 'Before tax', tax: 'Tax', estTotal: 'Total (estimate; final from the server)', total: 'Total',
+    cash: 'Cash', wallet: 'Wallet', credit: 'On credit', payHow: 'How was it paid?', whoOwes: 'Who will pay later?', chooseCustomer: 'Choose a customer', newCustomer: 'New customer', custName: 'Name', custPhone: 'Phone (for reminders)', add: 'Add',
+    done: 'Done', confirmSale: 'Confirm sale', saving: 'Saving...', saleSaved: 'Sale saved', creditSaved: 'Saved as owed', walletSaved: 'Sale saved (wallet)',
+    pickCustomer: 'Pick the customer for a credit sale.', walletPartial: 'The sale was recorded on credit under Walk-in but the wallet payment failed. Collect it from Owed.',
+    receipt: 'Receipt', no: 'No.', before: 'Before tax', paidBy: 'Paid by', customer: 'Customer', thanks: 'Thank you', owedNote: 'Not paid yet: on credit.',
+    m_cash: 'Cash', m_wallet: 'Wallet', m_credit: 'On credit', share: 'Share receipt', whatsapp: 'WhatsApp', print: 'Print', copied: 'Copied', newSale: 'New sale', notLegal: 'This receipt is a convenience copy. The official e-receipt is a MOCK in this PoC.',
+    remind: 'Remind', reminderTitle: 'Reminder', reminderNote: 'Nothing is sent. Tap WhatsApp to open the message and send it yourself.', openWhatsapp: 'Open WhatsApp', copy: 'Copy text',
+    gotPaid: 'Got paid', amount: 'Amount', howPaid: 'Paid by', fullBalance: 'Full amount', payConfirm: 'Save payment', paymentSaved: 'Payment saved', leftOver: 'Still owed after this',
+    tooMuch: 'That is more than they owe.', badAmount: 'Enter an amount above zero.', close: 'Close', cancel: 'Cancel',
+    wordsTitle: 'Shop words', wordsIntro: 'The books use accounting words. This page says what each one means in shop language.', wordsSearch: 'Search words', ledgerTerm: 'Books call it', wordsDraft: 'UNVERIFIED: Arabic wording is a draft that needs review by a native speaker.',
+    offline: 'No connection. Sales cannot be saved from this screen yet; reconnect and try again.', error: 'Something went wrong', noPerm: 'Your role cannot do this.',
+    savedDevice: 'Saved on this device. It will be sent when you are back online.', queued: 'waiting to send', synced: 'sent', walkIn: 'Walk-in', readyNote: 'Simple mode uses the same books as full mode.',
+  },
+  ar: {
+    appName: 'دفتر اليوم', tabToday: 'النهاردة', tabSell: 'بيع', tabOwed: 'ليّ عند الناس', tabWords: 'كلمات',
+    fullMode: 'الوضع الكامل', lang: 'English', user: 'المستخدم', signIn: 'سجّل الدخول للمتابعة', signInGo: 'فتح تسجيل الدخول',
+    soldToday: 'مبيعات النهاردة', sales: 'عمليات بيع', drawer: 'الدرج', drawerNote: 'حساب النقدية فقط', noDrawer: 'رصيد الدرج غير ظاهر لصلاحيتك.',
+    owedToYou: 'ليّ عند الناس', oldest: 'الأطول انتظاراً', nobodyOwes: 'مفيش حد عليه فلوس ليك.', daysLate: 'يوم تأخير', notDue: 'لسه ما حلّش ميعاده', seeAll: 'عرض الكل',
+    compliance: 'الالتزام', complianceNone: 'غير مفعّل بعد', complianceNote: 'مكان محجوز. فحص الالتزام (خطة التصميم 4.2) لم يُبنَ بعد، فلا توجد إشارة.',
+    sell: 'بيع', owed: 'ليّ عند الناس', paid: 'تحصيل', refresh: 'تحديث', loading: 'جارٍ التحميل...',
+    search: 'ابحث عن صنف أو اكتب كود', scan: 'مسح الباركود', scanning: 'وجّه الكاميرا للباركود', stopScan: 'إيقاف', typeCode: 'اكتب الكود', find: 'بحث',
+    scanNone: 'مسح الكاميرا غير متاح هنا. اكتب الكود.', scanDenied: 'الكاميرا محجوبة. اكتب الكود.', codeNotFound: 'لا يوجد صنف بهذا الكود.',
+    cart: 'السلة', emptyCart: 'اضغط على صنف لإضافته.', plus: 'زيادة', minus: 'نقص', remove: 'حذف',
+    beforeTax: 'قبل الضريبة', tax: 'الضريبة', estTotal: 'الإجمالي (تقدير؛ الرقم النهائي من الخادم)', total: 'الإجمالي',
+    cash: 'كاش', wallet: 'محفظة', credit: 'آجل', payHow: 'اتدفع إزاي؟', whoOwes: 'مين هيدفع بعدين؟', chooseCustomer: 'اختر عميلاً', newCustomer: 'عميل جديد', custName: 'الاسم', custPhone: 'الموبايل (للتذكير)', add: 'إضافة',
+    done: 'تم', confirmSale: 'تأكيد البيع', saving: 'جارٍ الحفظ...', saleSaved: 'تم حفظ البيع', creditSaved: 'تم التسجيل آجل', walletSaved: 'تم حفظ البيع (محفظة)',
+    pickCustomer: 'اختر العميل للبيع الآجل.', walletPartial: 'سُجّل البيع آجلاً على "عميل عابر" لكن دفع المحفظة فشل. حصّله من شاشة ليّ عند الناس.',
+    receipt: 'إيصال', no: 'رقم', before: 'قبل الضريبة', paidBy: 'طريقة الدفع', customer: 'العميل', thanks: 'شكراً لك', owedNote: 'لم يُدفع بعد: آجل.',
+    m_cash: 'كاش', m_wallet: 'محفظة', m_credit: 'آجل', share: 'مشاركة الإيصال', whatsapp: 'واتساب', print: 'طباعة', copied: 'تم النسخ', newSale: 'بيع جديد', notLegal: 'هذا الإيصال نسخة للتسهيل. الإيصال الإلكتروني الرسمي تجريبي (MOCK) في هذا النموذج.',
+    remind: 'تذكير', reminderTitle: 'تذكير', reminderNote: 'لا يُرسل شيء تلقائياً. اضغط واتساب لفتح الرسالة وأرسلها بنفسك.', openWhatsapp: 'فتح واتساب', copy: 'نسخ النص',
+    gotPaid: 'تم التحصيل', amount: 'المبلغ', howPaid: 'طريقة الدفع', fullBalance: 'المبلغ كله', payConfirm: 'حفظ التحصيل', paymentSaved: 'تم حفظ التحصيل', leftOver: 'المتبقي بعد هذا',
+    tooMuch: 'المبلغ أكبر من المستحق.', badAmount: 'اكتب مبلغاً أكبر من صفر.', close: 'إغلاق', cancel: 'إلغاء',
+    wordsTitle: 'كلمات المحل', wordsIntro: 'الدفاتر بتستخدم كلمات محاسبة. هذه الصفحة بتقول معنى كل كلمة بلغة المحل.', wordsSearch: 'ابحث في الكلمات', ledgerTerm: 'اسمها في الدفاتر', wordsDraft: 'غير مُراجَع (UNVERIFIED): الصياغة العربية مسودة وتحتاج مراجعة متحدث أصلي.',
+    offline: 'لا يوجد اتصال. لا يمكن حفظ البيع من هذه الشاشة بعد؛ أعد الاتصال وحاول مجدداً.', error: 'حدث خطأ', noPerm: 'صلاحيتك لا تسمح بهذا.',
+    savedDevice: 'تم الحفظ على هذا الجهاز. سيُرسل عند عودة الاتصال.', queued: 'في انتظار الإرسال', synced: 'أُرسل', walkIn: 'عميل عابر', readyNote: 'الوضع المبسط يستخدم نفس الدفاتر في الوضع الكامل.',
+  },
+};

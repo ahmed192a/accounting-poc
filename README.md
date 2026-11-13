@@ -74,6 +74,7 @@ list below grows as modules are merged. Per-module details live in `docs/<module
 | `security` | Sign-in, MFA, API keys, signed webhooks, audit hash chain | [security](docs/security.md) |
 | offline client | Queue sales, invoices, bills and customers without a connection; exactly-once replay with idempotency keys | [offline](docs/offline.md) |
 | live ETA adapter | OAuth, signing, submit and poll against a configurable ETA URL (UNVERIFIED against the real ETA) | [eta-live](docs/eta-live.md) |
+| simple mode | Phone-first shell at `/simple/`: today, sell (camera barcode, share receipt), owed, shop-word glossary, same API and ledger | [simple-mode](docs/simple-mode.md) |
 | `tenants` | One SQLite database per company, provisioning, suspend, export, backup | [tenancy](docs/tenancy.md) |
 
 Live API reference: run `npm run openapi` and open `docs/openapi.json` (generated, not committed; CI uploads it as an artifact).

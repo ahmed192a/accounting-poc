@@ -14,6 +14,7 @@ const PRECACHE = [
   '/', '/app.js', '/style.css', '/manifest.json',
   '/lib/format.js', '/lib/router.js', '/lib/nav.js', '/lib/theme.js', '/lib/focus.js', '/lib/search.js', '/lib/shortcuts.js',
   '/offline-queue.js', '/lib/icons.js', '/lib/html.js', '/lib/ui.js', '/lib/design-page.js', '/lib/theme-boot.js',
+  '/simple/', '/simple/main.js', '/simple/api.js', '/simple/logic.js', '/simple/glossary.js', '/simple/barcode.js', '/simple/simple.css', '/simple/manifest.json',
   '/icons/icon.svg', '/icons/icon-192.png', '/icons/icon-512.png',
 ];
 const STATIC_EXT = /\.(?:js|css|html|svg|png|ico|woff2)$/i;
@@ -22,7 +23,7 @@ function isStaticAsset(url, origin) {
   if (url.origin !== origin) return false;
   const p = url.pathname;
   if (p.startsWith('/api/')) return false;
-  return p === '/' || p === '/manifest.json' || STATIC_EXT.test(p);
+  return p === '/' || p === '/simple/' || p.endsWith('/manifest.json') || STATIC_EXT.test(p);
 }
 
 self.addEventListener('install', (event) => {

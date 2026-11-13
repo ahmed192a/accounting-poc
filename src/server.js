@@ -73,6 +73,7 @@ export function resolvePublicPath(publicDir, pathname) {
   try { rel = decodeURIComponent(pathname); } catch { return null; }
   if (rel.includes('\0') || rel.includes('\\')) return null;
   if (rel === '/' || rel === '') rel = '/index.html';
+  else if (rel.endsWith('/')) rel += 'index.html'; // /simple/ serves public/simple/index.html
   const root = resolve(publicDir);
   const file = resolve(root, '.' + rel);
   if (file !== root && !file.startsWith(root + sep)) return null;
