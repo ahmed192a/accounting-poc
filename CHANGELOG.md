@@ -5,6 +5,13 @@ All notable changes. Format based on Keep a Changelog; the project is pre-1.0 an
 ## [Unreleased]
 
 ### Added
+- Simple mode shell (`public/simple/`): Today, Sell (camera or typed barcode, cash / wallet / on credit, share and print receipt), Owed (days late, reminder, partial payment), Arabic/English glossary. Header link and per-user `ui.mode` hook in full mode. See `docs/simple-mode.md`.
+- `e2e/simple_check.py` and `test/simple.logic.test.js`.
+
+### Changed
+- Static server serves `index.html` for directory URLs (`/simple/`); `Permissions-Policy` allows the camera for the own origin.
+
+### Added
 - Roadmap, plan, step-by-step run guide, screenshots and demo video (`scripts/capture-media.py`).
 
 ### Added

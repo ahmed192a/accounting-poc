@@ -67,9 +67,15 @@ export function soldToday({ total: quickTotal = 0, count: quickCount = 0 }, invo
   return { total: quickTotal + mine.reduce((s, i) => s + i.total, 0), count: quickCount + mine.length };
 }
 
-export const waDigits = (phone) => String(phone ?? '').replace(/\D/g, '');
-export function whatsappLink(text, phone) {
-  const d = waDigits(phone);
+/** Digits for wa.me in international form, like the server's waNumber: 0xxxxxxxx becomes <countryCode>xxxxxxxx. Country code 20 (Egypt) is UNVERIFIED outside Egypt. */
+export function waDigits(phone, countryCode = '20') {
+  const raw = String(phone ?? '').replace(/[^\d+]/g, '');
+  let d = raw.replace(/\D/g, '');
+  if (!raw.startsWith('+')) { if (d.startsWith('00')) d = d.slice(2); else if (d.startsWith('0')) d = countryCode + d.slice(1); }
+  return d;
+}
+export function whatsappLink(text, phone, countryCode = '20') {
+  const d = waDigits(phone, countryCode);
   return `https://wa.me/${d.length >= 8 && d.length <= 15 ? d : ''}?text=${encodeURIComponent(text)}`;
 }
 

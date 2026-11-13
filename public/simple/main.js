@@ -42,7 +42,7 @@ async function loadAll() {
     can('sales.view') ? tryGet('/api/invoices', []) : [],
     can('sales.view') ? tryGet('/api/sales/settings', {}) : {},
   ]);
-  Object.assign(S, { items, customers, aging: L.rankOwed(aging.rows ?? []), invoices, business: settings.businessName ?? '', loaded: true });
+  Object.assign(S, { items, customers, aging: L.rankOwed(aging.rows ?? []), invoices, business: settings.businessName ?? '', countryCode: settings.countryCode || '20', loaded: true });
   render();
 }
 
@@ -69,6 +69,7 @@ function render() {
   v.dataset.ready = '1';
   v.innerHTML = ({ today: viewToday, sell: viewSell, owed: viewOwed, words: viewWords }[S.route] ?? viewToday)();
   if (S.route === 'sell') { paintGrid(); paintBasket(); }
+  if (S.route === 'words') paintWords();
 }
 
 // ---------- today ----------
@@ -173,12 +174,12 @@ async function confirmSale() {
       r = { sub: res.subtotal, vat: res.vat, total: res.total, number: res.number };
     } else { // wallet: an invoice for Walk-in, then a wallet payment for the same amount; both through the existing sales services
       const inv = await post('/api/invoices', { customer: WALK_IN, lines: L.invoiceLines(ls) }, key);
-      try { await post('/api/payments', { allocations: [{ invoiceId: inv.id, amount: inv.total }], method: 'wallet' }, `${key}-pay`); }
+      try { await post('/api/payments', { allocations: [{ invoiceId: inv.id, amount: inv.total }], method: 'wallet', amount: inv.total }, `${key}-pay`); }
       catch (e) { toast(t('walletPartial')); S.cart = []; saleKey = null; await loadAll(); return; }
       r = { sub: inv.subtotal, vat: inv.vat, total: inv.total, number: inv.number };
     }
     const receipt = { ...r, lines: ls, method, customer: cust?.name ?? '', phone: cust?.phone ?? '', date: L.isoToday() };
-    S.cart = []; saleKey = null; S.customerId = '';
+    S.cart = []; saleKey = null; S.customerId = ''; S.q = '';
     await loadAll(); openReceipt(receipt);
   } catch (e) { toast(errMsg(e)); }
   finally { S.busy = false; if ($('confirm')) { $('confirm').textContent = t('confirmSale'); paintBasket(); } }
@@ -193,7 +194,7 @@ function openReceipt(r) {
   $('print-area').textContent = text;
   sheet(`<h2>${esc(t('saleSaved'))}</h2><pre class="receipt" data-testid="receipt">${esc(text)}</pre><p class="muted small">${esc(t('notLegal'))}</p>
     <div class="actions"><button type="button" class="btn primary" data-act="share" data-text="${esc(text)}">${esc(t('share'))}</button>
-    <a class="btn" id="wa" target="_blank" rel="noopener noreferrer" href="${esc(L.whatsappLink(text, r.phone))}">${esc(t('whatsapp'))}</a>
+    <a class="btn" id="wa" target="_blank" rel="noopener noreferrer" href="${esc(L.whatsappLink(text, r.phone, S.countryCode))}">${esc(t('whatsapp'))}</a>
     <button type="button" class="btn" data-act="print">${esc(t('print'))}</button><button type="button" class="btn" data-act="closesheet">${esc(t('newSale'))}</button></div>`);
 }
 
@@ -238,7 +239,7 @@ async function paySave() {
     if (plan.left > 0) throw new ApiError(t('tooMuch'));
     $('paysave').disabled = true;
     await post('/api/payments', { allocations: plan.allocations, method, amount: a }, `${key}-${a}-${method}`);
-    closeSheet(); toast(t('paymentSaved'), true); await loadAll();
+    await loadAll(); closeSheet(); toast(t('paymentSaved'), true);
   } catch (e) { $('pay-err').textContent = errMsg(e); $('paysave').disabled = false; }
 }
 
@@ -258,8 +259,14 @@ function sheet(html) { const d = $('sheet'); d.innerHTML = `<div class="sheet-bo
 function closeSheet() { const d = $('sheet'); if (d.open) d.close(); d.innerHTML = ''; }
 
 async function refreshPending() { try { S.pending = (await queue(refreshPending).counts()).pending; } catch { S.pending = 0; } chrome(); }
+let syncTries = 0, syncTimer = null;
 async function syncQueue() {
-  try { const r = await queue(refreshPending).sync(); await refreshPending(); if (r.synced.length) { toast(`${r.synced.length} ${t('synced')}`, true); await loadAll(); } } catch { /* retried on the next online event */ }
+  clearTimeout(syncTimer);
+  try {
+    const r = await queue(refreshPending).sync(); await refreshPending();
+    if (r.synced.length) { toast(`${r.synced.length} ${t('synced')}`, true); await loadAll(); }
+    if (r.stopped && r.stopped !== 'auth' && S.pending) { syncTries += 1; syncTimer = setTimeout(syncQueue, Math.min(30_000, 2000 * syncTries)); } else syncTries = 0; // retry with backoff; items stay safely queued
+  } catch { syncTimer = setTimeout(syncQueue, 5000); }
 }
 
 // ---------- events ----------
@@ -303,8 +310,8 @@ document.addEventListener('change', (e) => {
   else if (e.target.id === 'cust') { S.customerId = e.target.value; saleKey = null; }
   else if (e.target.name === 'paym') payFor.key = newKey();
 });
-$('lang').addEventListener('click', () => { S.lang = S.lang === 'ar' ? 'en' : 'ar'; store.set('acct.lang', S.lang); render(); if (S.route === 'words') paintWords(); });
-$('user').addEventListener('change', (e) => { setUser(e.target.value); S.cart = []; S.loaded = false; render(); loadAll(); });
+$('lang').addEventListener('click', () => { S.lang = S.lang === 'ar' ? 'en' : 'ar'; store.set('acct.lang', S.lang); render(); });
+$('user').addEventListener('change', (e) => { setUser(e.target.value); store.set(modeKey(), 'simple'); S.cart = []; S.loaded = false; render(); loadAll(); });
 $('full').addEventListener('click', () => { store.set(modeKey(), 'full'); });
 $('sheet').addEventListener('close', () => { $('sheet').innerHTML = ''; });
 window.addEventListener('hashchange', route);
@@ -315,7 +322,7 @@ function route() {
   closeScan();
   const r = location.hash.replace(/^#\/?/, '') || 'today';
   S.route = ['today', 'sell', 'owed', 'words'].includes(r) ? r : 'today';
-  render(); if (S.route === 'words') paintWords();
+  render();
 }
 
 (async () => {
@@ -323,7 +330,7 @@ function route() {
   await init();
   store.set(modeKey(), 'simple'); // this user's ui.mode: opens here next time (see public/modules/simple-mode.js)
   route();
-  await loadAll(); if (S.route === 'words') paintWords();
+  await loadAll();
   await refreshPending(); if (navigator.onLine !== false && S.pending) syncQueue();
   document.body.dataset.ready = '1';
 })();

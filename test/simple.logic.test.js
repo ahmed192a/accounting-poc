@@ -74,6 +74,8 @@ test('simple: receipt text and WhatsApp link', () => {
   assert.match(ar, /زيت/); assert.ok(!ar.includes('undefined'));
   assert.equal(L.whatsappLink('hi there', '+20 100 123 4567'), 'https://wa.me/201001234567?text=hi%20there');
   assert.equal(L.whatsappLink('x', ''), 'https://wa.me/?text=x');
+  assert.equal(L.waDigits('01012345678'), '201012345678');
+  assert.equal(L.waDigits('0020 100 555 0101'), '201005550101');
 });
 
 test('simple: glossary has both languages for every term, and both UI string tables have the same keys', () => {
