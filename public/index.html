@@ -12,6 +12,39 @@
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="stylesheet" href="/style.css">
 <script src="/lib/theme-boot.js"></script>
+<script src="/lib/preload-modules.js" async></script>
+<!-- Start the two boot requests with the page instead of after the scripts have run (core/boot.js uses them right away). -->
+<link rel="preload" href="/api/demo-users" as="fetch" crossorigin>
+<link rel="preload" href="/api/ui-modules" as="fetch" crossorigin>
+<!-- The shell module graph, fetched in parallel instead of one import level at a time (test/client.layout.test.js keeps this list complete). -->
+<link rel="modulepreload" href="/core/api.js">
+<link rel="modulepreload" href="/core/app.js">
+<link rel="modulepreload" href="/core/boot.js">
+<link rel="modulepreload" href="/core/events.js">
+<link rel="modulepreload" href="/core/host.js">
+<link rel="modulepreload" href="/core/i18n.js">
+<link rel="modulepreload" href="/core/load.js">
+<link rel="modulepreload" href="/core/login.js">
+<link rel="modulepreload" href="/core/ready.js">
+<link rel="modulepreload" href="/core/registry.js">
+<link rel="modulepreload" href="/core/router.js">
+<link rel="modulepreload" href="/core/state.js">
+<link rel="modulepreload" href="/core/view.js">
+<link rel="modulepreload" href="/lib/design-page.js">
+<link rel="modulepreload" href="/lib/focus.js">
+<link rel="modulepreload" href="/lib/format.js">
+<link rel="modulepreload" href="/lib/html.js">
+<link rel="modulepreload" href="/lib/icons.js">
+<link rel="modulepreload" href="/lib/nav.js">
+<link rel="modulepreload" href="/lib/router.js">
+<link rel="modulepreload" href="/lib/search.js">
+<link rel="modulepreload" href="/lib/shortcuts.js">
+<link rel="modulepreload" href="/lib/theme.js">
+<link rel="modulepreload" href="/lib/ui.js">
+<link rel="modulepreload" href="/ui/actions.js">
+<link rel="modulepreload" href="/ui/chrome.js">
+<link rel="modulepreload" href="/ui/pages.js">
+<link rel="modulepreload" href="/ui/palette.js">
 </head>
 <body>
 <a class="skip-link" id="skip" href="#/" data-sh="skip">Skip to content</a>

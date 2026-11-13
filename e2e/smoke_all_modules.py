@@ -1,5 +1,7 @@
 import subprocess, time, sys, os, json, urllib.request
 from playwright.sync_api import sync_playwright
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from helpers import ready, go
 
 # Smoke test: sign in as each demo user, visit every navigation page we can discover, and fail on
 #   - any console error or uncaught page error
@@ -70,15 +72,16 @@ try:
             page.on("requestfailed", lambda r, issues=issues: issues.append(f"request failed: {r.url} {r.failure}"))
 
             page.goto(BASE + "/")
+            ready(page)
             page.wait_for_selector("#user option", state="attached")
             page.select_option("#user", str(u["id"]))
-            page.wait_for_load_state("networkidle")
+            ready(page)
             page.wait_for_selector(".role-line", timeout=10000)
 
             sel, labels = discover_nav(page)
             visited = ["home"] if not labels else []
             def visit(name, shot):
-                page.wait_for_load_state("networkidle")
+                ready(page)
                 text = page.inner_text("main").strip()
                 if len(text) < 5: issues.append(f"empty page: {name}")
                 page.screenshot(path=os.path.join(OUT, f"smoke_{u['id']}_{shot}.png"), full_page=True)
