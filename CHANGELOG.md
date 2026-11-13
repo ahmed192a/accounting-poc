@@ -4,6 +4,17 @@ All notable changes. Format based on Keep a Changelog; the project is pre-1.0 an
 
 ## [Unreleased]
 
+### Changed
+- UI shell: `public/app.js` (600 lines) is split into ES modules under `public/core/` and `public/ui/` (no bundler, no behavior
+  change). The service worker precaches the new files (shell cache `acct-shell-v3`); `index.html` preloads the module graph and the
+  two boot requests; `/api/home` is requested while the UI modules load.
+- Browser checks wait on a deterministic readiness signal (`<html data-ready>`, `data-route`, `window.__appReady`, `App.ready`)
+  instead of timeouts (`e2e/helpers.py`).
+
+### Added
+- `e2e/perf_budget.py` and a separate `perf` CI job: first interaction, tap response, quick-sale submit and app bytes on a
+  throttled mid-range phone profile.
+
 ### Added
 - Roadmap, plan, step-by-step run guide, screenshots and demo video (`scripts/capture-media.py`).
 

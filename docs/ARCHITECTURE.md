@@ -201,9 +201,9 @@ That is the whole change: no shared file is edited. (The example is documentatio
 
 ## UI module contract
 
-`public/index.html` is a small shell. `public/app.js` creates the `App` object, calls `GET /api/ui-modules` (public; the
-file names in `public/modules`), dynamically imports each and calls its default export once, then loads `/api/home` and
-renders. A module that throws while loading or registering is logged to the console and skipped; the rest still work.
+`public/index.html` is a small shell. `public/app.js` is the entry point; the shell it starts (client layout below) creates the
+`App` object, calls `GET /api/ui-modules` (public; the file names in `public/modules`), dynamically imports each and calls its
+default export once, then loads `/api/home` and renders. A module that throws while loading or registering is logged to the console and skipped; the rest still work.
 
 ```js
 export default function register(App) { ... }
@@ -234,6 +234,61 @@ RTL keeps working. Show the card from the permission/widget, and show each write
 `public/` is served statically (js, css, html, json, svg, png, ico, txt, woff2 with correct content types). Path traversal,
 dotfiles and unknown extensions are refused. Only `GET`/`HEAD`.
 
+## Client layout (the shell, no bundler)
+
+The shell is plain ES modules served as they are; there is no build step and no dependency. Imports use absolute paths
+(`/core/state.js`). Function-level import cycles are intended (render calls chrome, chrome calls navigation); nothing may use
+another module's export while its own module is still being evaluated.
+
+```
+public/app.js              entry point only: imports core/ready, core/app, core/events, then boot()
+public/core/ready.js       readiness signal (below); loaded first
+public/core/state.js       store (localStorage, failure-safe), the shared `state`, has/loc/money/toPiastres
+public/core/i18n.js        string tables (en, ar), t(), addStrings
+public/core/host.js        the empty `App` object, `view` (derived cards/pages), `$`
+public/core/registry.js    cards, pages, commands, handlers, hooks and their validation
+public/core/api.js         api(): identity header, CSRF, idempotency key, offline queue hook, 401 -> login
+public/core/login.js       sign-in screen plumbing
+public/core/view.js        which cards and pages the user sees, nav items
+public/core/load.js        toast, run(), load() (= /api/home + onLoad hooks + render)
+public/core/router.js      render(): chrome + page, keeps scroll, focus and selection
+public/core/events.js      delegated click/change/input/keydown listeners, hashchange, online/offline
+public/core/app.js         assembles the `App` object (the contract in the table above)
+public/core/boot.js        discovers and registers UI modules, first load, markReady
+public/ui/chrome.js        theme, top bar, side and bottom nav, account menu
+public/ui/pages.js         home, registered pages, onboarding, not-found
+public/ui/palette.js       command palette and shortcut help
+public/ui/actions.js       data-sh actions (language, nav drawer, install, sign-out)
+public/lib/*.js            pure logic (unit tested without a DOM) and DOM primitives (ui.js)
+public/modules/*.js        feature UI modules (unchanged contract)
+```
+
+Adding a shell file means three edits, and `test/client.layout.test.js` fails until all are done: the file itself, its entry in
+`PRECACHE` in `public/sw.js` (so the installed app opens offline), and a `<link rel="modulepreload">` in `public/index.html`.
+Bump `CACHE` in `public/sw.js` whenever the list changes.
+
+**Readiness signal.** Browser tests and the performance check never wait on timers:
+
+| Signal | Meaning |
+| --- | --- |
+| `<html data-ready="loading\|ready">` | `ready` only when the shell and first view are loaded **and** no `api()` call or data load is in flight |
+| `<html data-route="#/sales">` | route of the last render |
+| `window.__appReady` | `false` until the first load finished (also `true` when it failed; `<html data-ready-error>` is then set) |
+| `App.ready` | promise resolving at the same moment |
+| user-timing marks `acct:boot`, `acct:modules`, `acct:home`, `acct:hooks`, `acct:render`, `acct:ready` | boot phases, for profiling |
+
+`e2e/helpers.py` wraps this (`ready(page)`, `go(page, '#/sales')`, `stable(page, '#nav')`). Use CSS attribute selectors, not
+`wait_for_function`: the app sends a strict CSP and Playwright evaluates predicates with `eval`.
+
+**Start-up speed without a bundler.** `index.html` preloads the shell graph (`modulepreload`) and the two boot requests
+(`/api/demo-users`, `/api/ui-modules`); `lib/preload-modules.js` preloads the feature modules as soon as their list arrives; boot
+requests `/api/home` while the modules download. None of this changes what the app does, only when files are fetched.
+
+**Performance budget.** `python3 e2e/perf_budget.py` (separate `perf` job in `.github/workflows/e2e.yml`, not part of
+`run_all.py`): 390x800 phone, CPU x3, +40 ms RTT, 12 Mbit/s, cold cache, median of 7 runs. Budgets: first interaction (navigation
+to ready) under 1000 ms, tap response under 200 ms, quick-sale submit (tap to confirmation) under 300 ms, app bytes under 400 KB.
+Override the profile with `PERF_CPU`, `PERF_LATENCY_MS`, `PERF_DOWN_MBPS`, `PERF_RUNS`; scale all budgets with `PERF_SCALE`.
+
 ## Money
 
 Money is **integer piastres** (1 EGP = 100) everywhere: database columns, API payloads, JavaScript. Never a float, never
@@ -260,6 +315,7 @@ an explicit `currency` column next to the integer minor units (the 300-399 range
 npm test                       # node --test "test/**/*.test.js": new test files are picked up with no config change
 node --no-warnings --test test/sales.invoices.test.js   # one file
 python3 e2e/ui_check.py        # browser end-to-end (Python Playwright + Chromium), prints ALL UI CHECKS PASSED
+python3 e2e/run_all.py         # every browser check; python3 e2e/perf_budget.py is the separate performance budget
 ```
 
 `e2e/ui_check.py` starts the server itself. Environment: `POC_DIR` (repo to test, default: the repo containing the script),
