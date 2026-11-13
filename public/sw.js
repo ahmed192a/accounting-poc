@@ -17,7 +17,7 @@ const PRECACHE = [
   '/core/view.js', '/core/load.js', '/core/router.js', '/core/events.js', '/core/app.js', '/core/boot.js',
   '/ui/chrome.js', '/ui/pages.js', '/ui/palette.js', '/ui/actions.js',
   '/lib/format.js', '/lib/router.js', '/lib/nav.js', '/lib/theme.js', '/lib/focus.js', '/lib/search.js', '/lib/shortcuts.js',
-  '/offline-queue.js', '/lib/icons.js', '/lib/html.js', '/lib/ui.js', '/lib/design-page.js', '/lib/theme-boot.js',
+  '/offline-queue.js', '/lib/icons.js', '/lib/html.js', '/lib/ui.js', '/lib/design-page.js', '/lib/theme-boot.js', '/lib/preload-modules.js',
   '/icons/icon.svg', '/icons/icon-192.png', '/icons/icon-512.png',
 ];
 const STATIC_EXT = /\.(?:js|css|html|svg|png|ico|woff2)$/i;

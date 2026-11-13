@@ -21,15 +21,22 @@ export async function run(fn, okMsg) {
 
 export const load = () => tracked(loadHome);
 
+/** Set by boot: the first /api/home request, started while the UI modules are still loading. Consumed once by the first load. */
+export const prefetch = { home: null };
+
 async function loadHome() {
   if (!state.home) { $('main').innerHTML = skeleton({ cards: 4 }); }
   try {
     const uid = state.userId;
-    const home = await api('GET', '/api/home');
+    const pre = prefetch.home; prefetch.home = null;
+    const home = await (pre ?? api('GET', '/api/home'));
     if (uid !== state.userId) return; // the user switched while this was loading; a newer load is running
+    performance.mark('acct:home');
     state.home = home; // set first: load hooks call has(), which must see the NEW user's permissions (was the source of 403 noise)
     for (const hook of loadHooks) { if (uid !== state.userId) return; await hook(home); }
+    performance.mark('acct:hooks');
     render();
+    performance.mark('acct:render');
   } catch (e) {
     if (e.code === 'AUTH_REQUIRED') return;
     if (!state.home) {

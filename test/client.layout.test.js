@@ -37,3 +37,10 @@ test('readiness signal: data-ready, window.__appReady and App.ready exist and bo
   assert.match(readFileSync(join(PUBLIC, 'core/boot.js'), 'utf8'), /markReady\(/);
   assert.match(readFileSync(join(PUBLIC, 'core/app.js'), 'utf8'), /\bready,/);
 });
+
+test('index.html preloads the whole shell module graph (one parallel round instead of a waterfall)', () => {
+  const html = readFileSync(join(PUBLIC, 'index.html'), 'utf8');
+  const preloaded = new Set([...html.matchAll(/<link rel="modulepreload" href="([^"]+)">/g)].map((m) => m[1]));
+  for (const f of [...files('core'), ...files('ui')]) assert.ok(preloaded.has(f), `index.html should modulepreload ${f}`);
+  for (const f of preloaded) assert.ok(existsSync(join(PUBLIC, f)), `index.html preloads ${f}, which does not exist`);
+});
