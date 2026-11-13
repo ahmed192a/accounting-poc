@@ -7,7 +7,7 @@ export default function register(App) {
   App.i18n.add('en', {
     docTitle: 'Documents', docEntity: 'Attach to', docBill: 'Bill', docPo: 'Purchase order', docPick: 'Choose one', docNone: 'No documents yet.',
     docUpload: 'Upload a file', docKind: 'Type', docKindAttachment: 'Attachment', docKindSource: 'Source file (e-invoice JSON or XML)',
-    docCamera: 'Take a photo', docLive: 'Use the camera on this device', docSnap: 'Snap', docCancel: 'Cancel', docDownload: 'Open', docRemove: 'Remove',
+    docCamera: 'Take a photo', docLive: 'Use the camera on this device', docSnap: 'Snap', docCancel: 'Cancel', docDownload: 'Download', docRemove: 'Remove',
     docRemoveWhy: 'Reason for removing this document?', docLimits: 'Up to {n} files per record, {kb} KB each. PDF, PNG, JPEG, WebP, text, CSV, JSON, XML.',
     docEdoc: 'Has valid e-document', docEdocYes: 'Yes', docEdocNo: 'No', docEdocUnknown: 'Unknown', docEdocNote: 'Note (optional)', docEdocSave: 'Save',
     docUnverified: 'UNVERIFIED rule: whether a valid e-invoice or e-receipt is needed for tax is not confirmed with the ETA. This is a manual note, not a check.',
@@ -19,7 +19,7 @@ export default function register(App) {
   App.i18n.add('ar', {
     docTitle: 'المستندات', docEntity: 'إرفاق بـ', docBill: 'فاتورة مورد', docPo: 'أمر شراء', docPick: 'اختر', docNone: 'لا توجد مستندات بعد.',
     docUpload: 'رفع ملف', docKind: 'النوع', docKindAttachment: 'مرفق', docKindSource: 'ملف مصدر (فاتورة إلكترونية JSON أو XML)',
-    docCamera: 'التقاط صورة', docLive: 'استخدام كاميرا هذا الجهاز', docSnap: 'التقاط', docCancel: 'إلغاء', docDownload: 'فتح', docRemove: 'إزالة',
+    docCamera: 'التقاط صورة', docLive: 'استخدام كاميرا هذا الجهاز', docSnap: 'التقاط', docCancel: 'إلغاء', docDownload: 'تنزيل', docRemove: 'إزالة',
     docRemoveWhy: 'سبب إزالة هذا المستند؟', docLimits: 'حتى {n} ملفات لكل سجل، {kb} كيلوبايت للملف. PDF وPNG وJPEG وWebP ونص وCSV وJSON وXML.',
     docEdoc: 'لديه مستند إلكتروني صالح', docEdocYes: 'نعم', docEdocNo: 'لا', docEdocUnknown: 'غير معروف', docEdocNote: 'ملاحظة (اختياري)', docEdocSave: 'حفظ',
     docUnverified: 'قاعدة غير مؤكدة: لم يتم التأكد من مصلحة الضرائب هل يلزم فاتورة أو إيصال إلكتروني صالح. هذه ملاحظة يدوية وليست فحصا.',
@@ -115,9 +115,9 @@ export default function register(App) {
     };
   }
 
-  function setPending(file) {
-    if (pending?.url) URL.revokeObjectURL(pending.url);
-    pending = file ? { file, url: URL.createObjectURL(file) } : null;
+  // The page CSP allows img-src 'self' data: only, so the preview is a data URL, not a blob URL.
+  async function setPending(file) {
+    pending = file ? { file, url: `data:${file.type};base64,${await readB64(file)}` } : null;
     App.render();
   }
 
@@ -183,8 +183,10 @@ export default function register(App) {
     const d = await api('GET', `/api/documents/${b.dataset.id}/content`);
     const bin = atob(d.contentBase64); const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    // A download link: a blob tab would inherit the page CSP and may not render PDFs.
     const url = URL.createObjectURL(new Blob([bytes], { type: d.mime }));
-    window.open(url, '_blank', 'noopener');
+    const a = document.createElement('a');
+    a.href = url; a.download = d.filename; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   }));
   App.on('doc-remove', (b) => {
@@ -222,5 +224,5 @@ export default function register(App) {
     await refreshLists();
     await refreshDocs();
   });
-  App.onUserChange(() => { sel = { type: 'bill', id: null }; docs = []; edoc = null; setPending(null); pendingEdoc = 'unknown'; });
+  App.onUserChange(() => { sel = { type: 'bill', id: null }; docs = []; edoc = null; pending = null; pendingEdoc = 'unknown'; });
 }
