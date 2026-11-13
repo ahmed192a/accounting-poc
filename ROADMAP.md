@@ -24,7 +24,8 @@ Still open:
 
 - [ ] Run the live ETA adapter against the real ETA preprod (needs credentials and the current spec) and fix what differs.
 - [ ] PostgreSQL port. Feasibility and counts are in [docs/tenancy.md](docs/tenancy.md); the main cost is making every database call async.
-- [ ] A scheduler for ETA sync, escalation and recurring bills; a UI card for the live ETA settings.
+- [x] A scheduler for ETA sync, escalation and recurring bills ([docs/jobs.md](docs/jobs.md)).
+- [ ] A UI card for the live ETA settings and one for background jobs.
 - [ ] Per-tenant encryption keys, tenant deletion, and splitting demo seeds from reference seeds.
 - [ ] Pilot with three real merchants, then triage their complaints.
 
