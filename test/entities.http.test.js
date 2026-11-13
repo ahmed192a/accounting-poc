@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp, createSeededContext } from '../src/server.js';
+import { createApp, createDemoContext } from '../src/server.js';
 import { startApp } from './helpers.js';
 
 const OWNER = 1, MANAGER = 2, CLERK = 3, ACCOUNTANT = 4, AUDITOR = 5;
 
 test('HTTP: entities, scoped entries and reports, access denial and the permission gates', async () => {
-  const { server, call } = await startApp(createApp, createSeededContext());
+  const { server, call } = await startApp(createApp, createDemoContext());
   try {
     assert.equal((await call('GET', '/api/entities', CLERK)).status, 403);
     assert.equal((await call('POST', '/api/entities', ACCOUNTANT, { code: 'B', name: 'B' })).status, 403);
@@ -31,7 +31,7 @@ test('HTTP: entities, scoped entries and reports, access denial and the permissi
 });
 
 test('HTTP: currencies, rates, FX conversion, revaluation and the mock provider', async () => {
-  const { server, call } = await startApp(createApp, createSeededContext());
+  const { server, call } = await startApp(createApp, createDemoContext());
   try {
     assert.equal((await call('POST', '/api/fx/rates', CLERK, { currency: 'USD', date: '2026-01-01', rate: '48' })).status, 403);
     assert.equal((await call('POST', '/api/fx/rates', ACCOUNTANT, { currency: 'USD', date: '2026-01-01', rate: '48' })).status, 201);
@@ -50,7 +50,7 @@ test('HTTP: currencies, rates, FX conversion, revaluation and the mock provider'
 });
 
 test('HTTP: chart of accounts, CSV import, template, deletion rules and year-end closing', async () => {
-  const { server, call } = await startApp(createApp, createSeededContext());
+  const { server, call } = await startApp(createApp, createDemoContext());
   try {
     assert.equal((await call('GET', '/api/coa', CLERK)).status, 403);
     assert.equal((await call('POST', '/api/coa', ACCOUNTANT, { code: '5990', name: 'Misc', nameAr: 'متفرقات', type: 'expense' })).status, 201);

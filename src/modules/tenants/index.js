@@ -36,7 +36,7 @@ export default {
       handler: (ctx, u) => { const m = operator(ctx, u, 'tenants.view'); return { tenants: m.list() }; },
     },
     {
-      method: 'POST', path: '/api/tenants', meta: { summary: 'Provision a tenant: fresh database, migrations, seeds and an owner', permission: 'tenants.manage' },
+      method: 'POST', path: '/api/tenants', meta: { summary: 'Provision a tenant: fresh database, migrations, reference seeds (demo data only with demo: true) and an owner', permission: 'tenants.manage' },
       handler: (ctx, u, { body }) => operator(ctx, u, 'tenants.manage').create(u, body),
     },
     {

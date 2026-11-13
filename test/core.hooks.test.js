@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSeededContext } from '../src/server.js';
+import { createDemoContext } from '../src/server.js';
 import { loadModules, MODULES_DIR } from '../src/modules.js';
 import { loadUser } from '../src/permissions.js';
 import * as sales from '../src/modules/sales/service.js';
@@ -28,7 +28,7 @@ export default { name: 'boom', hooks: { 'sale.created': () => { throw Object.ass
 test('hooks: modules receive sale, invoice and bill events with their payloads', async () => {
   globalThis.__hookSeen = [];
   const registry = await loadModules([MODULES_DIR, tempModules({ 'spy/index.js': SPY })]);
-  const ctx = createSeededContext(':memory:', registry);
+  const ctx = createDemoContext(':memory:', registry);
   const clerk = loadUser(ctx, 3), manager = loadUser(ctx, 2);
   globalThis.__hookSeen.length = 0;
 
@@ -50,7 +50,7 @@ test('hooks: modules receive sale, invoice and bill events with their payloads',
 
 test('hooks: a hook that throws rolls the whole operation back (atomic)', async () => {
   const registry = await loadModules([MODULES_DIR, tempModules({ 'boom/index.js': FAILING })]);
-  const ctx = createSeededContext(':memory:', registry);
+  const ctx = createDemoContext(':memory:', registry);
   const clerk = loadUser(ctx, 3);
   const count = (t) => ctx.db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get().n;
   const before = [count('sales'), count('journal_entries'), count('receipts')];

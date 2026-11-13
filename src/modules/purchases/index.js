@@ -5,7 +5,7 @@ import * as pay from './payments.js';
 import * as rep from './reports.js';
 import * as att from './attachments.js';
 import * as rec from './recurring.js';
-import { seed } from './seed.js';
+import { seed, demoSeed } from './seed.js';
 
 const EGP = 100;
 const r = (method, path, summary, permission, handler) => ({ method, path, handler, meta: { summary, permission } });
@@ -72,4 +72,5 @@ export default {
   ],
   widgets: s.widgets,
   seed,
+  demoSeed,
 };

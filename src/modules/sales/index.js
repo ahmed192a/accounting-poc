@@ -1,5 +1,5 @@
 import * as s from './service.js';
-import { seed } from './seed.js';
+import { seed, demoSeed } from './seed.js';
 import { hooks } from './reactions.js';
 
 const id = (r) => Number(r.params.id);
@@ -76,4 +76,5 @@ export default {
   ],
   widgets: s.widgets,
   seed,
+  demoSeed,
 };

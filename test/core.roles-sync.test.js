@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { createSeededContext } from '../src/server.js';
+import { createDemoContext } from '../src/server.js';
 import { loadMigrations, runMigrations, MIGRATIONS_DIR } from '../src/db.js';
 import { loadModules, MODULES_DIR, initContext } from '../src/modules.js';
 import { syncBuiltinRoles, loadUser, BUILTIN_ROLES, ALL_PERMISSIONS } from '../src/permissions.js';
@@ -17,7 +17,7 @@ const roleRow = (ctx, name) => {
 };
 
 test('built-in roles are created from module grants, with (at least) the original permission sets and limits', () => {
-  const ctx = createSeededContext();
+  const ctx = createDemoContext();
   // Superset checks: later modules may grant more atoms, but the original grants must never go missing.
   const has = (n, atoms) => { const p = roleRow(ctx, n).permissions; for (const a of atoms) assert.ok(p.includes(a), `${n} should hold ${a}`); };
   has('clerk', ['purchases.create', 'purchases.view', 'sales.create', 'sales.view']);
@@ -40,7 +40,7 @@ test('role re-sync: a persistent database gets newly added atoms for built-in ro
   const path = join(dir, 'app.db');
   try {
     // 1. first start, old code: no "reports2" module yet. A custom role exists.
-    let ctx = createSeededContext(path);
+    let ctx = createDemoContext(path);
     createRole(ctx, loadUser(ctx, 6), { name: 'Cashier', permissions: ['sales.view'] });
     assert.ok(!roleRow(ctx, 'manager').permissions.includes('reports2.view'));
     const customBefore = roleRow(ctx, 'Cashier');
@@ -58,7 +58,7 @@ test('role re-sync: a persistent database gets newly added atoms for built-in ro
       };`,
     });
     const registry = await loadModules([MODULES_DIR, extra]);
-    ctx = createSeededContext(path, registry);
+    ctx = createDemoContext(path, registry);
     assert.ok(roleRow(ctx, 'manager').permissions.includes('reports2.view'));
     assert.ok(!roleRow(ctx, 'manager').permissions.includes('reports2.export'));
     assert.deepEqual(roleRow(ctx, 'auditor').permissions.filter((p) => p.startsWith('reports2')).sort(), ['reports2.export', 'reports2.view']);
@@ -83,7 +83,7 @@ test('role re-sync: a persistent database gets newly added atoms for built-in ro
     ctx.db.close();
 
     // 4. one more restart: still nothing to do
-    ctx = createSeededContext(path, registry);
+    ctx = createDemoContext(path, registry);
     assert.equal(JSON.stringify(ctx.db.prepare('SELECT * FROM roles ORDER BY id').all()), snapshot);
     assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM users').get().n, usersBefore);
     ctx.db.close();
@@ -91,7 +91,7 @@ test('role re-sync: a persistent database gets newly added atoms for built-in ro
 });
 
 test('role re-sync: a custom role with a built-in name is never overwritten; a missing built-in role is recreated', () => {
-  const ctx = createSeededContext();
+  const ctx = createDemoContext();
   ctx.db.prepare("UPDATE roles SET builtin = 0, permissions = '[\"sales.view\"]' WHERE name = 'auditor'").run();
   ctx.db.prepare("DELETE FROM users WHERE role_id = (SELECT id FROM roles WHERE name = 'clerk')").run();
   ctx.db.prepare("DELETE FROM roles WHERE name = 'clerk'").run();
@@ -106,7 +106,7 @@ test('persistent database from before migrations/modules existed is adopted with
   const dir = mkdtempSync(join(tmpdir(), 'poc-legacy-'));
   const path = join(dir, 'legacy.db');
   try {
-    const first = createSeededContext(path);
+    const first = createDemoContext(path);
     // Turn it into what the pre-migration code left behind: only the 001_core tables, no bookkeeping tables.
     const core = (await loadMigrations(MIGRATIONS_DIR)).filter((m) => m.id === '001_core');
     const base = new DatabaseSync(':memory:');
@@ -116,7 +116,7 @@ test('persistent database from before migrations/modules existed is adopted with
       if (!keep.has(name)) first.db.exec(`DROP TABLE ${name}`);
     }
     first.db.close();
-    const ctx = createSeededContext(path); // must not crash on UNIQUE constraints
+    const ctx = createDemoContext(path); // must not crash on UNIQUE constraints
     assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM users').get().n, 6);
     assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM items').get().n, 4);
     assert.equal(ctx.db.prepare('SELECT COUNT(*) AS n FROM journal_entries').get().n, 1);

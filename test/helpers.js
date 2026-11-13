@@ -1,13 +1,13 @@
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createSeededContext } from '../src/server.js';
+import { createDemoContext } from '../src/server.js';
 import { loadUser } from '../src/permissions.js';
 
 export const IDS = { owner: 1, manager: 2, clerk: 3, accountant: 4, auditor: 5, admin: 6 };
 
 export function setup() {
-  const ctx = createSeededContext();
+  const ctx = createDemoContext();
   const as = (name) => loadUser(ctx, IDS[name]);
   return { ctx, as };
 }

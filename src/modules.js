@@ -38,7 +38,7 @@ export async function loadModules(dirs = MODULES_DIR) {
 
   const registry = {
     modules: [], routes: [], permissions: {}, roleGrants: [], roleLimits: [], exportTables: [],
-    seeds: [], widgetFns: [], hooks: {},
+    seeds: [], demoSeeds: [], widgetFns: [], hooks: {},
     buildWidgets(ctx, user) {
       const out = {};
       for (const { module, fn } of this.widgetFns) {
@@ -85,18 +85,28 @@ export async function loadModules(dirs = MODULES_DIR) {
     }
     if (mod.widgets) registry.widgetFns.push({ module: folder, fn: mod.widgets });
     if (mod.seed) registry.seeds.push({ module: folder, seed: mod.seed });
+    if (mod.demoSeed) registry.demoSeeds.push({ module: folder, seed: mod.demoSeed });
   }
   return registry;
 }
 
 export const defaultRegistry = await loadModules();
 
+// module_seeds rows: "<module>" = reference seed done, "<module>:demo" = demo seed done, SPLIT = this database knows the split.
+const SPLIT = 'seeds:split';
+
 /**
  * Wire a registry into a context: register permissions and role grants (global, idempotent), sync the
- * built-in roles in the database (every startup), then run each module's seed once per database,
- * core first.
+ * built-in roles in the database (every startup), then run each module's seeds once per database, core first.
+ *
+ * Two kinds of seed (docs/ARCHITECTURE.md): `seed` is reference data every company needs (chart of accounts, settings,
+ * the owner placeholder user, default approval rule) and always runs; `demoSeed` is sample data (demo users, items,
+ * customers, suppliers, rates, opening balance, demo bank accounts, demo credentials) and runs only when `opts.demo`
+ * is true. All reference seeds run before any demo seed. Demo seeds are recorded as "<module>:demo", so asking for
+ * demo data later (a second call with demo: true) adds it once and never twice.
+ * A database created before the split already holds both kinds: its demo seeds are recorded as done, not re-run.
  */
-export function initContext(ctx, registry = defaultRegistry) {
+export function initContext(ctx, registry = defaultRegistry, { demo = false } = {}) {
   ctx.registry = registry;
   for (const m of registry.modules) registerPermissions(m.name, m.permissions);
   for (const g of registry.roleGrants) grantBuiltin(g.module, g.role, g.atoms);
@@ -105,11 +115,17 @@ export function initContext(ctx, registry = defaultRegistry) {
 
   const { db } = ctx;
   const done = new Set(db.prepare('SELECT module FROM module_seeds').all().map((r) => r.module));
-  const mark = db.prepare('INSERT INTO module_seeds (module, applied_at) VALUES (?, ?)');
-  // A database seeded before module_seeds existed already has its demo data: record, do not re-seed.
-  if (done.size === 0 && db.prepare('SELECT 1 FROM users LIMIT 1').get()) {
-    for (const { module } of registry.seeds) mark.run(module, ctx.now());
-    return ctx;
+  const mark = db.prepare('INSERT OR IGNORE INTO module_seeds (module, applied_at) VALUES (?, ?)');
+  const hadUsers = !!db.prepare('SELECT 1 FROM users LIMIT 1').get();
+  if (!done.has(SPLIT)) {
+    if (done.size === 0 && hadUsers) {
+      // A database seeded before module_seeds existed already has all its data: record, do not re-seed.
+      for (const { module } of registry.seeds) { mark.run(module, ctx.now()); done.add(module); }
+    }
+    // Seeded before the split: every module seed it has run included its demo data.
+    for (const { module } of registry.demoSeeds) if (done.has(module)) { mark.run(`${module}:demo`, ctx.now()); done.add(`${module}:demo`); }
+    mark.run(SPLIT, ctx.now());
+    done.add(SPLIT);
   }
   for (const { module, seed } of registry.seeds) {
     if (done.has(module)) continue;
@@ -117,6 +133,15 @@ export function initContext(ctx, registry = defaultRegistry) {
       seed(ctx);
       mark.run(module, ctx.now());
     });
+  }
+  if (demo) {
+    for (const { module, seed } of registry.demoSeeds) {
+      if (done.has(`${module}:demo`)) continue;
+      tx(db, () => {
+        seed(ctx);
+        mark.run(`${module}:demo`, ctx.now());
+      });
+    }
   }
   return ctx;
 }

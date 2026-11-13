@@ -10,7 +10,8 @@
     "coverage": "node scripts/coverage-check.js",
     "check": "node --no-warnings scripts/check-repo.js",
     "openapi": "node --no-warnings scripts/openapi.js",
-    "smoke": "node scripts/smoke-server.js"
+    "smoke": "node scripts/smoke-server.js",
+    "restore-drill": "node --no-warnings scripts/restore-drill.js"
   },
   "engines": { "node": ">=22.13" }
 }

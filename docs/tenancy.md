@@ -58,7 +58,7 @@ several companies gets `409 TENANT_REQUIRED` listing the slugs; an unknown e-mai
 
 ### Provisioning (`POST /api/tenants`)
 Input `{ slug, name, ownerEmail, ownerPassword, ownerName? }`. The manager registers the tenant as `provisioning`, creates
-`tenant-<id>.db`, applies every migration, syncs the built-in roles, runs every module seed, writes `tenant_info`, and creates the
+`tenant-<id>.db`, applies every migration, syncs the built-in roles, runs every module's reference seed (demo data only if `demo: true` is passed), writes `tenant_info`, and creates the
 owner with the password policy of the auth module (via its first-run path; the password is never stored in the registry or logged).
 On any failure the registry row and the file are removed (tested). Audit: `tenant.created` in the default tenant's log and
 `tenant.provisioned` in the new tenant's log. Existing tenant files are migrated and role-synced the first time they are opened
@@ -77,7 +77,7 @@ owner can never list, create, suspend or export other companies, even though the
 | `POST /api/tenants` | `tenants.manage` | Provision |
 | `POST /api/tenants/:slug/suspend`, `/resume` | `tenants.manage` | Suspended: sign-in and every request get `403 TENANT_SUSPENDED`; data is kept; the default tenant cannot be suspended |
 | `GET /api/tenants/:slug/export` | `tenants.export` | The same JSON as `/api/export` for that tenant only; audited in both databases |
-| `POST /api/tenants/:slug/backup` | `tenants.export` | `VACUUM INTO TENANTS_DIR/backups/<slug>-<time>.db` (consistent while running); returns path, size, sha256. Never overwrites |
+| `POST /api/tenants/:slug/backup` | `tenants.export` | `VACUUM INTO TENANTS_DIR/backups/<slug>-<time>.db` (consistent while running); returns path, size, sha256. Never overwrites. `npm run restore-drill` proves such a backup restores: audit chain and ledger totals match (see DEPLOY.md) |
 
 `tenants.view` and `tenants.manage` go to the built-in admin role; `tenants.export` (another company's complete data) is held by the
 owner only. No hook events were added.
@@ -106,8 +106,8 @@ refused (`TENANT_DB_MISMATCH`); the open-database cap; background sealing per te
   the limiter is still per IP or API key, process-wide.
 - **Shared secrets**: `TAX_SECRET_KEY` and other environment secrets are one per process, not one per tenant (the per-tenant key
   hierarchy of the original design is NOT built). Backups and exports are not encrypted.
-- **Seeds include sample data**: module seeds run unchanged, so a new tenant also gets the six placeholder demo users (inactive, no
-  password), sample items and sample customers. A reference-data-only seed split needs each module's agreement.
+- **Seeds**: a new tenant gets reference data only (chart of accounts, settings, default approval rule, the owner). Sample data
+  (the six placeholder demo users, items, customers, suppliers, opening balance) is opt-in with `demo: true` on `POST /api/tenants`.
 - **No cross-tenant reporting**, no tenant deletion (suspend only), no tenant rename, no moving a database between servers other
   than copying the file with the registry row.
 - **Login form**: the UI sign-in has no "company" field; a shared e-mail shows the server's `TENANT_REQUIRED` message. The API accepts `tenant`.

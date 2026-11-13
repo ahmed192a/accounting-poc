@@ -1,0 +1,38 @@
+name: restore drill
+
+# Proves a tenant backup can be restored: provision a company, back it up, restore into a fresh database and check that the
+# audit hash chain verifies and the ledger totals match the source. Runs on every change to the code it exercises, monthly
+# (design plan 5.3 / ADR D1), and on demand.
+on:
+  push:
+    paths:
+      - 'src/**'
+      - 'scripts/restore-drill.js'
+      - '.github/workflows/restore-drill.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'scripts/restore-drill.js'
+      - '.github/workflows/restore-drill.yml'
+  schedule:
+    - cron: '17 5 1 * *'
+  workflow_dispatch:
+
+concurrency:
+  group: restore-drill-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  restore-drill:
+    name: restore drill
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --no-warnings scripts/restore-drill.js

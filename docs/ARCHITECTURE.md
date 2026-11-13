@@ -80,7 +80,8 @@ export default {
     },
   ],
   widgets: (ctx, user) => ({ hello: { count: 1 } }),  // merged into GET /api/home `widgets`
-  seed: (ctx) => { /* demo data */ },                 // runs once per database, core first
+  seed: (ctx) => { /* reference data every company needs */ },   // runs once per database, core first
+  demoSeed: (ctx) => { /* sample data, opt-in */ },               // runs only when demo data is requested, after all reference seeds
 };
 ```
 
@@ -99,7 +100,14 @@ What the loader (`src/modules.js`) does with it:
   produced by one module (a clash throws). Decide with `user.permissions.has(...)`, not role names.
 - **seed**: runs once per module per database inside a transaction, after the `core` seed (core, then alphabetical).
   Recorded in `module_seeds`, so a module added later is seeded on its first startup without re-seeding the others.
-  A seed must not assume another module seeded before it, except that `core` (users) runs first.
+  A seed must not assume another module seeded before it, except that `core` (the owner user) runs first.
+- **seed vs demoSeed**: `seed` is **reference data** a real company needs on day one (chart of accounts, settings, default
+  rules, the owner placeholder user) and always runs. `demoSeed` is **sample data** (demo users, items, customers, suppliers,
+  exchange rates, opening balance, demo bank accounts, demo credentials) and runs only when asked: `SEED_DEMO=1` or `--demo`
+  on `npm start`, `createSeededContext(path, registry, { demo: true })` / `createDemoContext()` in code and tests, or
+  `demo: true` in `POST /api/tenants`. All reference seeds run before any demo seed; demo seeds are recorded as
+  `<module>:demo` in `module_seeds`, so demo data added later is added once. A database from before the split is treated as
+  already demo-seeded. Put new sample data in `demoSeed`, never in `seed`.
 - **exportTables**: plain table names, appended to the core export list so the full-fidelity export stays complete.
 
 A handler receives `ctx = { db, now(), registry, offsetMs }`. Always use `ctx.now()` (never `Date.now()`) so the demo
@@ -274,7 +282,7 @@ and `ctx.offsetMs`).
 
 ## Startup sequence (for reference)
 
-`createSeededContext(path)` in `src/server.js`: `openDb` (run pending migrations) -> `createContext` -> `initContext`
+`createSeededContext(path, registry, { demo })` in `src/server.js` (`createDemoContext` adds the demo data): `openDb` (run pending migrations) -> `createContext` -> `initContext`
 (register permissions and role grants from all modules, sync built-in roles in the database, run pending seeds) ->
 `createApp(ctx)` (routes from the registry, then static files from `public/`).
 

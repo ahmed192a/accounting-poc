@@ -77,7 +77,7 @@ export function createTenantManager(baseCtx, { dir = null, maxOpen = 50, registr
 
   const dRow = defaultRow();
 
-  function openTenant(row) {
+  function openTenant(row, { demo = false } = {}) {
     const hit = open.get(row.id);
     if (hit) return hit;
     const memory = !dir;
@@ -87,7 +87,7 @@ export function createTenantManager(baseCtx, { dir = null, maxOpen = 50, registr
     // Set BEFORE initContext so the auth seed creates inert placeholder users instead of demo passwords.
     ctx.security = { ...cfg(baseCtx), required: true };
     decorate(ctx, row);
-    initContext(ctx, registry);
+    initContext(ctx, registry, { demo });
     const info = Object.fromEntries(db.prepare('SELECT key, value FROM tenant_info').all().map((r) => [r.key, r.value]));
     if (info.slug == null && (memory || row.status === 'provisioning')) writeInfo(db, row);
     else if (info.slug == null || info.slug !== row.slug || info.tenant_id !== String(row.id)) {
@@ -216,7 +216,7 @@ export function createTenantManager(baseCtx, { dir = null, maxOpen = 50, registr
       return lease(defaultRow());
     },
 
-    /** Operator action: provision a tenant. Fresh database, every migration, every module seed, one owner with the given credentials. */
+    /** Operator action: provision a tenant. Fresh database, every migration, every reference seed (demo data only with input.demo === true), one owner with the given credentials. */
     create(actor, input = {}) {
       const slug = String(input.slug ?? '').trim().toLowerCase();
       const name = String(input.name ?? '').trim();
@@ -234,7 +234,7 @@ export function createTenantManager(baseCtx, { dir = null, maxOpen = 50, registr
       let ownerId;
       try {
         const row = rowById(id);
-        const e = openTenant(row);
+        const e = openTenant(row, { demo: input.demo === true });
         writeInfo(e.ctx.db, row);
         const r = ensureFirstRun(e.ctx, { log: () => {}, env: { INITIAL_OWNER_PASSWORD: input.ownerPassword, INITIAL_OWNER_EMAIL: ownerEmail, INITIAL_OWNER_NAME: input.ownerName } });
         ownerId = r.ownerId;
